@@ -39,7 +39,19 @@
         </label>
         <label class="field">
           <span class="field-label">Password</span>
-          <input type="password" id="login-password" autocomplete="current-password" required />
+          <div class="password-input-wrap">
+            <input type="password" id="login-password" autocomplete="current-password" required />
+            <button type="button" class="toggle-password-btn" data-target="login-password" aria-label="Toggle password visibility" title="Show/Hide Password">
+              <svg class="eye-icon eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+              <svg class="eye-icon eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
         </label>
         <label class="field field-inline">
           <input type="checkbox" id="login-persist" checked />
@@ -59,13 +71,24 @@
         </label>
         <label class="field">
           <span class="field-label">Password <span class="hint">(min 8 chars)</span></span>
-          <input type="password" id="reg-password" autocomplete="new-password" minlength="8" required />
+          <div class="password-input-wrap">
+            <input type="password" id="reg-password" autocomplete="new-password" minlength="8" required />
+            <button type="button" class="toggle-password-btn" data-target="reg-password" aria-label="Toggle password visibility" title="Show/Hide Password">
+              <svg class="eye-icon eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+              <svg class="eye-icon eye-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
         </label>
         <button type="submit" class="btn btn-primary">Create account</button>
       </form>
 
       <div id="auth-error" class="auth-error" role="alert" hidden></div>
-      <p class="auth-foot" id="auth-foot">Local-only mode auto-disabled when <code>config.js</code> is present.</p>
     </div>
   </main>
 
@@ -83,6 +106,11 @@
         <button class="view-tab"            data-view="dashboard" role="tab" aria-selected="false">Dashboard</button>
       </nav>
       <div class="topbar-right">
+        <!-- Connectivity Indicator placed inline inside topbar-right -->
+        <div id="conn-indicator" class="conn-indicator" role="status" aria-live="polite">
+          <span class="conn-dot" id="conn-dot"></span>
+          <span id="conn-text">Online</span>
+        </div>
         <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
           <span id="notify-badge" class="badge" hidden>0</span>
           <span aria-hidden="true">&#128276;</span>

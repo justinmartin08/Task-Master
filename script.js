@@ -1178,14 +1178,43 @@
     function fetchAll() {
       if (TM.Config.demo) return Promise.resolve({ friends: [], pending: [], sent: [] });
       var uid = TM.Auth.uid();
-      return sb().from('friends')
-        .select('*, sender:profiles!friends_sender_fkey(username), recipient:profiles!friends_recipient_fkey(username)')
+      var c = sb();
+      if (!c) return Promise.resolve({ friends: [], pending: [], sent: [] });
+      return c.from('friends')
+        .select('*, sender:profiles!sender_id(username), recipient:profiles!recipient_id(username)')
         .or('sender_id.eq.' + uid + ',recipient_id.eq.' + uid)
         .then(function (res) {
           if (res.error) throw res.error;
-          var raw = res.data || [];
+          return res.data || [];
+        })
+        .catch(function () {
+          return c.from('friends')
+            .select('*')
+            .or('sender_id.eq.' + uid + ',recipient_id.eq.' + uid)
+            .then(function (res2) {
+              if (res2.error) return [];
+              var rows = res2.data || [];
+              if (!rows.length) return [];
+              var uids = [];
+              rows.forEach(function (r) {
+                var o = r.sender_id === uid ? r.recipient_id : r.sender_id;
+                if (o && uids.indexOf(o) === -1) uids.push(o);
+              });
+              if (!uids.length) return rows;
+              return c.from('profiles').select('id, username').in('id', uids).then(function (pRes) {
+                var map = {};
+                (pRes.data || []).forEach(function (p) { map[p.id] = p.username; });
+                rows.forEach(function (r) {
+                  if (r.sender_id === uid) r.recipient = { username: map[r.recipient_id] };
+                  else r.sender = { username: map[r.sender_id] };
+                });
+                return rows;
+              });
+            });
+        })
+        .then(function (raw) {
           var accepted = [], pending = [], sent = [];
-          raw.forEach(function (r) {
+          (raw || []).forEach(function (r) {
             r.other_id = r.sender_id === uid ? r.recipient_id : r.sender_id;
             r.other_name = r.sender_id === uid ? (r.recipient && r.recipient.username) : (r.sender && r.sender.username);
             if (r.status === 'accepted') accepted.push(r);
@@ -1197,7 +1226,7 @@
           return { friends: accepted, pending: pending, sent: sent };
         })
         .catch(function (e) {
-          TM.Notify.toast('Could not load friends: ' + e.message, 'warn');
+          console.warn('Friends fetch warning:', e);
           return { friends: [], pending: [], sent: [] };
         });
     }
@@ -1264,14 +1293,29 @@
       cache = [];
       if (TM.Config.demo) return Promise.resolve([]);
       var uid = TM.Auth.uid();
-      return sb().from('help_requests')
-        .select('*, recipient:profiles!help_requests_recipient_fkey(username), sender:profiles!help_requests_sender_fkey(username)')
+      var c = sb();
+      if (!c) return Promise.resolve([]);
+      return c.from('help_requests')
+        .select('*, recipient:profiles!recipient_id(username), sender:profiles!sender_id(username)')
         .or('sender_id.eq.' + uid + ',recipient_id.eq.' + uid)
         .eq('task_id', taskId)
         .order('created_at', { ascending: true })
         .then(function (r) {
           if (r.error) throw r.error;
-          var rows = (r.data || []).map(function (h) {
+          return r.data || [];
+        })
+        .catch(function () {
+          return c.from('help_requests')
+            .select('*')
+            .or('sender_id.eq.' + uid + ',recipient_id.eq.' + uid)
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true })
+            .then(function (r2) {
+              return r2.data || [];
+            });
+        })
+        .then(function (raw) {
+          var rows = (raw || []).map(function (h) {
             h._mine = h.sender_id === uid;
             h.other_name = h._mine ? (h.recipient && h.recipient.username) : (h.sender && h.sender.username);
             return h;
@@ -1279,8 +1323,7 @@
           cache = rows;
           return rows;
         })
-        .catch(function (e) {
-          TM.Notify.toast('Could not load help requests: ' + (e && e.message || 'unknown'), 'warn');
+        .catch(function () {
           return [];
         });
     }
@@ -2196,6 +2239,23 @@
       document.querySelectorAll('#view-auth button[type="submit"]').forEach(function (b) { b.disabled = busy; });
     }
     function bind() {
+      // ---- password toggle ----
+      document.querySelectorAll('.toggle-password-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var targetId = btn.getAttribute('data-target');
+          var input = $(targetId);
+          if (!input) return;
+          var isPass = input.type === 'password';
+          input.type = isPass ? 'text' : 'password';
+          var eyeOff = btn.querySelector('.eye-off');
+          var eyeOn = btn.querySelector('.eye-on');
+          if (eyeOff && eyeOn) {
+            eyeOff.style.display = isPass ? 'none' : 'block';
+            eyeOn.style.display = isPass ? 'block' : 'none';
+          }
+        });
+      });
+
       // ---- auth ----
       $('tab-login').addEventListener('click', function () { showAuthTab('login'); });
       $('tab-register').addEventListener('click', function () { showAuthTab('register'); });
@@ -2448,9 +2508,6 @@
       var uid = TM.Auth.uid();
       if (uid) settings = TM.Storage.get(uid, 'settings', {}) || {};
       $('notify-browser-toggle').checked = !!(settings.browserNotif);
-      $('auth-foot').textContent = TM.Config.demo
-        ? 'Demo mode: no BaaS configured. Register/log in locally \u2014 friends, help, and cross-device sync need Supabase (config.js).'
-        : 'Connected to Supabase (' + TM.Config.url + ').';
       showAuthTab('login');
     }
 
