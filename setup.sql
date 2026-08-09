@@ -18,8 +18,6 @@ create table if not exists public.friends (
   recipient_id uuid not null references public.profiles(id) on delete cascade,
   status text not null default 'pending' check (status in ('pending','accepted','declined')),
   created_at timestamptz default now(),
-  constraint friends_sender_fkey foreign key (sender_id) references public.profiles(id) on delete cascade,
-  constraint friends_recipient_fkey foreign key (recipient_id) references public.profiles(id) on delete cascade,
   unique (sender_id, recipient_id),
   check (sender_id <> recipient_id)
 );
@@ -39,9 +37,7 @@ create table if not exists public.help_requests (
   sent_at timestamptz default now(),
   delivered_at timestamptz,
   read_at timestamptz,
-  replied_at timestamptz,
-  constraint help_requests_sender_fkey foreign key (sender_id) references public.profiles(id) on delete cascade,
-  constraint help_requests_recipient_fkey foreign key (recipient_id) references public.profiles(id) on delete cascade
+  replied_at timestamptz
 );
 alter table public.help_requests enable row level security;
 
