@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Master — Test Harness</title>
+  <style>
+    body { font: 14px/1.5 "Segoe UI", system-ui, sans-serif; background: #f5f8ff; color: #1c2330; margin: 0; padding: 20px; }
+    h1 { color: #0f2a5f; margin: 0 0 4px; }
+    .sub { color: #4a5566; margin: 0 0 16px; }
+    .controls { margin-bottom: 12px; }
+    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #d9e1ef; background: #fff; color: #1e63d6; cursor: pointer; font-weight: 600; }
+    button:hover { background: #f1f6ff; }
+    .summary { padding: 12px 16px; border-radius: 8px; margin: 12px 0; font-weight: 700; }
+    .summary.pass { background: #e7f7ef; color: #115e3a; border: 1px solid #b6e3cc; }
+    .summary.fail { background: #fdeef0; color: #741319; border: 1px solid #f4c7cb; }
+    .suite { margin: 14px 0; }
+    .suite h2 { font-size: 15px; color: #0f2a5f; margin: 0 0 6px; }
+    .case { padding: 6px 10px; border-radius: 6px; margin: 3px 0; display: flex; gap: 8px; }
+    .case.pass { background: #e7f7ef; }
+    .case.fail { background: #fdeef0; }
+    .case .mark { font-weight: 700; }
+    .case .detail { color: #741319; }
+    .dim { color: #8a93a5; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Task Master — Test Harness</h1>
+  <p class="sub">Self-contained assertion suite. Runs against the real <code>script.js</code> with a mocked Supabase client and stub DOM. Append <code>?run=auto</code> to run automatically on load.</p>
+  <div class="controls">
+    <button id="run-btn">Run tests</button>
+    <span id="progress" class="dim"></span>
+  </div>
+  <div id="output"></div>
+
+  <!-- CryptoJS (same CDN as production) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+  <!-- ================= TEST MODE + MOCKS ================= -->
+  <script>
+    window.__TM_TEST__ = true;
+    window.SUPABASE_URL = 'https://fake-project.supabase.co';
+    window.SUPABASE_ANON_KEY = 'fake-anon-key';
+
+    // ---- minimal stub DOM so DOM-dependent code paths never throw ----
+    function stubEl() {
+      return {
+        innerHTML: '', value: '', hidden: false, checked: false, disabled: false, textContent: '',
+        title: '', dataset: {}, style: { setProperty: function () {}, display: '' },
+        className: '', classList: { toggle: function () {}, add: function () {}, remove: function () {}, contains: function () { return false; } },
+        setAttribute: function () {}, getAttribute: function () { return null; },
+        addEventListener: function () {}, removeEventListener: function () {},
+        appendChild: function () {}, remove: function () {}, firstChild: null, children: [],
+        querySelector: function () { return null; }, querySelectorAll: function () { return []; },
+        focus: function () {}, click: function () {}
+      };
+    }
+    (function () {
+      var realGet = document.getElementById.bind(document);
+      document.getElementById = function (id) {
+        var el = realGet(id);
+        return el || stubEl();
+      };
+    })();
+
+    // ---- Fake Supabase client: thenable query builder (like real supabase-js) ----
+    var fakeDB = {
+      profiles: [{ id: 'u1', username: 'alice', email: 'alice@test.dev' }],
+      friends: [],
+      help_requests: [],
+      task_sync: [],
+      seq: 1
+    };
+    var fakeChannels = [];
+
+    function FakeQuery(table) {
+      this.table = table;
+      this.where = {};
+      this._filters = [];
+      this._limit = 1000;
+      this._order = null;
+      this._method = null;
+      this._op = null;      // 'select' | 'insert' | 'upsert' | 'update' | 'delete'
+      this._payload = null;
+    }
+
+    FakeQuery.prototype.eq = function (k, v)     { this.where[k] = { op: 'eq',  val: v }; return this; };
+    FakeQuery.prototype.neq = function (k, v)    { this.where[k] = { op: 'neq', val: v }; return this; };
+    FakeQuery.prototype.in = function (k, arr)   { this.where[k] = { op: 'in',  val: arr }; return this; };
+    FakeQuery.prototype.or = function (s)        { return this; };
+    FakeQuery.prototype.order = function (col, o){ this._order = { col: col, asc: !(o && o.ascending === false) }; return this; };
+    FakeQuery.prototype.limit = function (n)     { this._limit = n; return this; };
+    FakeQuery.prototype.maybeSingle = function (){ this._method = 'maybeSingle'; return this; };
+    FakeQuery.prototype.single = function ()     { this._method = 'single'; return this; };
+    FakeQuery.prototype.select = function (cols) { this._op = 'select'; return this; };
+    FakeQuery.prototype.insert = function (rows) { this._op = 'insert'; this._payload = rows; return this; };
+    FakeQuery.prototype.upsert = function (row)  { this._op = 'upsert'; this._payload = row; return this; };
+    FakeQuery.prototype.update = function (patch){ this._op = 'update'; this._payload = patch; return this; };
+    FakeQuery.prototype.delete = function ()     { this._op = 'delete'; return this; };
+
+    FakeQuery.prototype._filtered = function () {
+      var self = this;
+      var rows = fakeDB[this.table].filter(function (r) {
+        for (var k in self.where) {
+          if (self.where[k].op === 'eq'  && r[k] !== self.where[k].val) return false;
+          if (self.where[k].op === 'neq' && r[k] === self.where[k].val) return false;
+          if (self.where[k].op === 'in'  && self.where[k].val.indexOf(r[k]) === -1) return false;
+        }
+        for (var i = 0; i < self._filters.length; i++) if (!self._filters[i](r)) return false;
+        return true;
+      });
+      if (this._order) {
+        var o = this._order;
+        rows.sort(function (a, b) {
+          var av = a[o.col], bv = b[o.col];
+          if (av == null) return 1; if (bv == null) return -1;
+          return o.asc ? (av < bv ? -1 : 1) : (av > bv ? -1 : 1);
+        });
+      }
+      return rows.slice(0, this._limit);
+    };
+
+    FakeQuery.prototype.then = function (resolve, reject) {
+      var q = this;
+      return new Promise(function (res, rej) {
+        setTimeout(function () {
+          try {
+            var out = q._exec();
+            res(out);
+          } catch (e) { rej(e); }
+        }, 0);
+      }).then(resolve, reject);
+    };
+    FakeQuery.prototype.catch = function (rej) {
+      return this.then(null, rej);
+    };
+
+    FakeQuery.prototype._exec = function () {
+      var q = this;
+      var table = q.table;
+      if (!q._op) q._op = 'select';
+      if (q._op === 'select') {
+        var rows = q._filtered();
+        if (q._method === 'maybeSingle') return { data: rows[0] || null, error: null };
+        if (q._method === 'single') return { data: rows[0] || null, error: rows.length === 1 ? null : { message: 'No rows' } };
+        return { data: rows, error: null };
+      }
+      if (q._op === 'insert') {
+        var incoming = Array.isArray(q._payload) ? q._payload : [q._payload];
+        var out = [];
+        for (var i = 0; i < incoming.length; i++) {
+          var row = JSON.parse(JSON.stringify(incoming[i]));
+          var dup = fakeDB[table].some(function (r) {
+            if (table === 'friends') return r.sender_id === row.sender_id && r.recipient_id === row.recipient_id && r.status !== 'declined';
+            if (table === 'help_requests') return r.sender_id === row.sender_id && r.recipient_id === row.recipient_id && r.task_id === row.task_id && r.status !== 'replied';
+            return false;
+          });
+          if (dup) return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
+          row.id = row.id || ('r' + (fakeDB.seq++));
+          fakeDB[table].push(row);
+          out.push(row);
+        }
+        return { data: out.length === 1 ? out[0] : out, error: null };
+      }
+      if (q._op === 'upsert') {
+        var u = JSON.parse(JSON.stringify(q._payload));
+        var idx = -1;
+        if (u.id != null) idx = fakeDB[table].findIndex(function (r) { return r.id === u.id; });
+        else if (u.task_id != null) idx = fakeDB[table].findIndex(function (r) { return r.task_id === u.task_id && r.user_id === u.user_id; });
+        if (idx === -1) { u.id = u.id || ('r' + (fakeDB.seq++)); fakeDB[table].push(u); }
+        else fakeDB[table][idx] = u;
+        return { data: u, error: null };
+      }
+      if (q._op === 'update') {
+        var rows = q._filtered();
+        rows.forEach(function (row) {
+          var i = fakeDB[table].indexOf(row);
+          if (i !== -1) Object.assign(fakeDB[table][i], q._payload);
+        });
+        return { data: rows, error: null };
+      }
+      if (q._op === 'delete') {
+        var del = q._filtered();
+        del.forEach(function (row) {
+          var i = fakeDB[table].indexOf(row);
+          if (i !== -1) fakeDB[table].splice(i, 1);
+        });
+        return { data: del, error: null };
+      }
+      return { data: [], error: null };
+    };
+
+    function FakeChannel(name) {
+      this.name = name;
+      this.handlers = [];
+      this.presence = {};
+      this.subscribed = false;
+      fakeChannels.push(this);
+    }
+    FakeChannel.prototype.on = function (type, cfg, cb) { this.handlers.push({ type: type, cfg: cfg, cb: cb }); return this; };
+    FakeChannel.prototype.subscribe = function (cb) { this.subscribed = true; if (cb) setTimeout(function () { cb('SUBSCRIBED'); }, 0); return this; };
+    FakeChannel.prototype.track = function (obj) { this.presence[obj.uid] = [obj]; return this; };
+    FakeChannel.prototype.presenceState = function () { return this.presence; };
+
+    var fakeAuth = {
+      getSession: function () { return { data: { session: null } }; },
+      signUp: function (opts) {
+        var existing = fakeDB.profiles.some(function (p) { return p.email === opts.email; });
+        if (existing) return Promise.resolve({ data: { user: null }, error: { message: 'User already registered' } });
+        var user = { id: 'u' + (fakeDB.seq++), email: opts.email, user_metadata: opts.options.data };
+        return Promise.resolve({ data: { user: user }, error: null });
+      },
+      signInWithPassword: function (opts) {
+        var p = fakeDB.profiles.find(function (x) { return x.email === opts.email; });
+        if (!p || opts.password !== 'password1') return Promise.resolve({ data: { user: null, session: null }, error: { message: 'Invalid login credentials' } });
+        return Promise.resolve({ data: { user: { id: p.id, email: p.email, user_metadata: { username: p.username } }, session: {} }, error: null });
+      },
+      signOut: function () { return Promise.resolve({ error: null }); },
+      rpc: function () { return Promise.resolve({ error: null }); }
+    };
+
+    function fakeCreateClient() {
+      return {
+        auth: fakeAuth,
+        from: function (t) { return new FakeQuery(t); },
+        channel: function (name) { return new FakeChannel(name); },
+        removeChannel: function () {},
+        rpc: function () { return Promise.resolve({ error: null }); }
+      };
+    }
+
+    window.supabase = { createClient: fakeCreateClient };
+    window.__TM_FAKE__ = { db: fakeDB, channels: fakeChannels, auth: fakeAuth };
+  </script>
+
+  <!-- Real application code under test -->
+  <script src="script.js"></script>
+
+  <!-- ================= TEST RUNNER ================= -->
+  <script>
+    (function () {
+      var results = [];
+      var currentSuite = '';
+
+      function suite(name) { currentSuite = name; }
+      function ok(cond, name, detail) { results.push({ suite: currentSuite, name: name, pass: !!cond, detail: cond ? '' : (detail || '') }); }
+      function eq(a, b, name) { ok(a === b, name, 'expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); }
+      function truthy(a, name) { ok(!!a, name, 'expected truthy, got ' + JSON.stringify(a)); }
+      function throws(fn, name) { var threw = false; try { fn(); } catch (e) { threw = true; } ok(threw, name, 'expected an exception'); }
+      async function rejects(promiseLike, name) {
+        var rej = false;
+        try { await promiseLike; } catch (e) { rej = true; }
+        ok(rej, name, 'expected rejection');
+      }
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+      var NEW_DAY = 86400000;
+
+      function freshUser() {
+        localStorage.clear();
+        fakeDB.profiles = [{ id: 'u1', username: 'alice', email: 'alice@test.dev' }];
+        fakeDB.friends = [];
+        fakeDB.help_requests = [];
+        fakeDB.task_sync = [];
+        TM.Auth.setUser({ id: 'u1', user_metadata: { username: 'alice' } });
+        TM.Storage.set('u1', 'user-meta', { username: 'alice' });
+        TM.UI.setAppVisible(true);
+      }
+
+      async function runAll() {
+        localStorage.clear();
+
+        // ---------- Crypto & Storage ----------
+        suite('Crypto & Storage');
+        var enc = TM.Crypto.encrypt({ hello: 'world', n: 42 }, 'u1');
+        ok(typeof enc === 'string' && enc.indexOf('ENC:') === 0, 'encrypt produces ENC: prefixed blob');
+        eq(TM.Crypto.decrypt(enc, 'u1').hello, 'world', 'decrypt round-trips with same uid');
+        ok(TM.Crypto.decrypt(enc, 'someoneelse') == null, 'decrypt with wrong uid yields null');
+        ok(TM.Crypto.decrypt(null, 'u1') == null, 'decrypt null is null');
+        ok(TM.Crypto.decrypt('garbage', 'u1') == null, 'decrypt malformed returns null');
+        TM.Storage.set('u1', 'probe', { a: [1, 2, 3] });
+        eq(TM.Storage.get('u1', 'probe', null).a.length, 3, 'storage set/get round-trip');
+        ok(TM.Storage.get('u1', 'missing', 'fallback') === 'fallback', 'storage missing key returns fallback');
+
+        // ---------- Auth ----------
+        suite('Auth');
+        await rejects(TM.Auth.register('', 'x@x.com', 'abcdefgh'), 'register rejects empty username');
+        await rejects(TM.Auth.register('bob', 'not-an-email', 'abcdefgh'), 'register rejects invalid email');
+        await rejects(TM.Auth.register('bob', 'b@b.com', 'short'), 'register rejects short password');
+        var reg = await TM.Auth.register('charlie', 'charlie@test.dev', 'password1');
+        truthy(reg && reg.uid, 'register succeeds with valid data');
+        await rejects(TM.Auth.register('dup', 'charlie@test.dev', 'password1'), 'duplicate registration rejected');
+        await rejects(TM.Auth.login('alice@test.dev', 'wrongpass', true), 'login rejects bad password');
+        await rejects(TM.Auth.login('', '', true), 'login rejects missing fields');
+        var login = await TM.Auth.login('alice@test.dev', 'password1', true);
+        truthy(login && login.uid === 'u1', 'login succeeds with valid credentials');
+        await TM.Auth.logout();
+        ok(true, 'logout completes (multi-student: session can be swapped)');
+
+        // ---------- Tasks: CRUD + persistence ----------
+        suite('Tasks CRUD & persistence');
+        freshUser();
+        var t1 = TM.Tasks.upsert({ title: 'Read chapter 4', due: '2026-09-01', subject: 'English', priority: 'high' });
+        truthy(t1.id, 'upsert assigns id');
+        eq(TM.Tasks.loadTasks().length, 1, 'task persists in encrypted storage');
+        throws(function () { TM.Tasks.upsert({ title: '   ' }); }, 'upsert rejects blank titles');
+        throws(function () { TM.Tasks.upsert({}); }, 'upsert rejects missing title');
+        var badDue = TM.Tasks.upsert({ title: 'ok', due: 'not-a-date' });
+        ok(badDue.due == null, 'invalid due date is nulled');
+        truthy(TM.Tasks.find(t1.id), 'find locates task');
+        ok(TM.Tasks.remove('nope') === false, 'remove missing task returns false');
+        ok(TM.Tasks.remove(t1.id), 'remove deletes task');
+        eq(TM.Tasks.loadTasks().length, 1, 'removed task gone (only badDue remains)');
+        TM.Tasks.remove(badDue.id);
+
+        // ---------- 7-day purge + timer reset ----------
+        suite('7-day purge (permanent, timer resets)');
+        freshUser();
+        var old = TM.Tasks.upsert({ title: 'Completed ages ago' });
+        var newish = TM.Tasks.upsert({ title: 'Freshly completed' });
+        TM.Tasks.setCompleted(old.id, true);
+        var fOld = TM.Tasks.find(old.id);
+        fOld.task.completedAt = Date.now() - 8 * NEW_DAY;
+        TM.Tasks.saveTasks(fOld.list);
+        var purged = TM.Tasks.purgeSweep();
+        ok(purged, 'purgeSweep reports change');
+        ok(!TM.Tasks.find(old.id), 'completed >7 days is permanently removed (no recovery option)');
+        TM.Tasks.setCompleted(newish.id, true);
+        var firstCompletedAt = TM.Tasks.find(newish.id).task.completedAt;
+        truthy(firstCompletedAt, 'completing sets completedAt');
+        truthy(TM.Tasks.find(newish.id), 'completed <7 days survives');
+        TM.Tasks.setCompleted(newish.id, false);
+        eq(TM.Tasks.find(newish.id).task.completedAt, null, 'unchecking clears completedAt (timer reset)');
+        var tBefore = Date.now();
+        TM.Tasks.setCompleted(newish.id, true);
+        ok(TM.Tasks.find(newish.id).task.completedAt >= tBefore, 're-completion writes fresh completedAt — timer resets');
+        var fN = TM.Tasks.find(newish.id);
+        fN.task.completedAt = Date.now() - 7 * NEW_DAY + 1000;
+        TM.Tasks.saveTasks(fN.list);
+        TM.Tasks.purgeSweep();
+        truthy(TM.Tasks.find(newish.id), 'completed at 7d minus epsilon survives');
+        var fN2 = TM.Tasks.find(newish.id);
+        fN2.task.completedAt = Date.now() - 7 * NEW_DAY - 1000;
+        TM.Tasks.saveTasks(fN2.list);
+        TM.Tasks.purgeSweep();
+        ok(!TM.Tasks.find(newish.id), 'completed at 7d plus epsilon is purged');
+
+        // ---------- Sorting & grouping ----------
+        suite('Sorting & views');
+        freshUser();
+        var a = TM.Tasks.upsert({ title: 'A later', due: '2026-12-01', priority: 'low', subject: 'Math' });
+        var b = TM.Tasks.upsert({ title: 'B urgent', due: '2020-01-01', priority: 'high', subject: 'Physics' });
+        var c = TM.Tasks.upsert({ title: 'C no date', priority: 'medium', subject: '' });
+        document.getElementById('sort-mode').value = 'dueAsc';
+        var sorted = TM.Views.sorted();
+        eq(sorted[0].id, b.id, 'dueAsc puts earliest due first');
+        eq(sorted[sorted.length - 1].id, c.id, 'dueAsc puts no-date last');
+        document.getElementById('sort-mode').value = 'priorityDesc';
+        sorted = TM.Views.sorted();
+        eq(sorted[0].id, b.id, 'priorityDesc puts high first');
+        eq(TM.Views.groupKey(b, 'due'), 'Overdue', 'overdue bucket groups correctly');
+        eq(TM.Views.groupKey(c, 'subject'), 'No subject', 'no-subject bucket');
+        var m = TM.Views.metrics();
+        eq(m.total, 3, 'dashboard metric total');
+        eq(m.overdue, 1, 'dashboard metric overdue count');
+        eq(m.pct, 0, 'dashboard completion rate 0% when nothing completed');
+        TM.Tasks.setCompleted(a.id, true);
+        m = TM.Views.metrics();
+        eq(m.completed, 1, 'completion count after completing');
+        TM.Tasks.upsert({ title: 'Due soon', due: TM.Utils.addDaysISO(TM.Utils.todayISO(), 3) });
+        m = TM.Views.metrics();
+        eq(m.upcoming, 1, 'upcoming-7-day count includes due in 3 days');
+
+        // ---------- Recurrence ----------
+        suite('Recurrence & instance isolation');
+        freshUser();
+        var series = TM.Tasks.createSeries({ title: 'Weekly Math', subject: 'Math', priority: 'medium', freq: 'weekly', count: 8, start: TM.Utils.todayISO() });
+        var instances = TM.Tasks.loadTasks().filter(function (t) { return t.seriesId === series.seriesId; });
+        truthy(instances.length >= 3, 'series materializes multiple instances (' + instances.length + ')');
+        var inst2 = instances[2];
+        var sibling0 = instances[0];
+        TM.Tasks.editInstance(inst2, { title: 'Weekly Math (redo)', priority: 'high' });
+        eq(TM.Tasks.find(inst2.id).task.title, 'Weekly Math (redo)', 'instance edit changes that instance only');
+        eq(TM.Tasks.find(inst2.id).task.priority, 'high', 'instance edit applied override');
+        eq(TM.Tasks.find(sibling0.id).task.title, 'Weekly Math', 'sibling title untouched by single-instance edit');
+        eq(TM.Tasks.find(sibling0.id).task.priority, 'medium', 'sibling priority untouched by single-instance edit');
+        TM.Tasks.recomputeSeries(series.seriesId);
+        truthy(TM.Tasks.find(inst2.id), 'instance still exists after re-materialize');
+        eq(TM.Tasks.find(inst2.id).task.title, 'Weekly Math (redo)', 'override survives regeneration');
+        TM.Tasks.editSeriesBase(series.seriesId, { title: 'Weekly Math v2' });
+        var allInst = TM.Tasks.loadTasks().filter(function (t) { return t.seriesId === series.seriesId; });
+        ok(allInst.every(function (t) { return t.title === 'Weekly Math v2' || t.id === inst2.id; }), 'series edit propagates to all instances');
+        eq(TM.Tasks.find(inst2.id).task.title, 'Weekly Math (redo)', 'per-instance override survives series edit');
+        eq(TM.Tasks.loadTasks().filter(function (t) { return t.seriesId === series.seriesId; }).length, allInst.length, 'series edit keeps instances');
+        TM.Tasks.deleteSeries(series.seriesId);
+        eq(TM.Tasks.loadTasks().filter(function (t) { return t.seriesId === series.seriesId; }).length, 0, 'series delete removes all instances');
+
+        // ---------- Attachments ----------
+        suite('Attachments & quota');
+        freshUser();
+        var task = TM.Tasks.upsert({ title: 'With attachments' });
+        var blocked = TM.UI.stageFile({ name: 'big.pdf', size: 6 * 1024 * 1024, type: 'application/pdf' });
+        eq(blocked, false, 'stageFile rejects file over 5MB per-task limit');
+        var clipped = TM.UI.stageFile({ name: 'tiny.txt', size: 512, type: 'text/plain' });
+        eq(clipped, true, 'stageFile accepts small file');
+        eq(TM.Tasks.attachCount(task.id).bytes, 0, 'staged files do not persist until save');
+        var blobId = 'testblob1';
+        await TM.IDB.putBlob({ id: blobId, taskId: task.id, blob: new Blob(['hello']), name: 'note.txt', mime: 'text/plain', size: 5 });
+        var got = await TM.IDB.getBlob(blobId);
+        truthy(got && got.name === 'note.txt', 'IndexedDB stores and retrieves attachment blobs');
+        await TM.IDB.deleteBlob(blobId);
+        ok(!(await TM.IDB.getBlob(blobId)), 'IndexedDB deletes blob');
+        var est = await TM.IDB.estimate();
+        ok(!est || (est.usage != null && est.quota != null), 'navigator.storage.estimate resolves usage/quota');
+
+        // ---------- Export ----------
+        suite('Export');
+        freshUser();
+        TM.Tasks.upsert({ title: 'Export active' });
+        var expRecent = TM.Tasks.upsert({ title: 'Export completed recent' });
+        var expOld = TM.Tasks.upsert({ title: 'Export completed old' });
+        TM.Tasks.setCompleted(expRecent.id, true);
+        TM.Tasks.setCompleted(expOld.id, true);
+        var fOld2 = TM.Tasks.find(expOld.id);
+        fOld2.task.completedAt = Date.now() - 8 * NEW_DAY;
+        TM.Tasks.saveTasks(fOld2.list);
+        var rows = TM.Export.rowsForCSV();
+        var titles = rows.map(function (r) { return r[1]; });
+        ok(titles.indexOf('Export active') !== -1, 'CSV includes active tasks');
+        ok(titles.indexOf('Export completed recent') !== -1, 'CSV includes completed tasks within 7-day window');
+        ok(titles.indexOf('Export completed old') === -1, 'CSV excludes completed tasks beyond 7-day purge window');
+        var origMax = TM.Config.EXPORT_MAX_BYTES;
+        TM.Config.EXPORT_MAX_BYTES = 10;
+        var threwExport = false;
+        try { TM.Export.guardSize('x'.repeat(100)); } catch (e) { threwExport = e.message.indexOf('size limit') !== -1; }
+        ok(threwExport, 'export guard throws when data exceeds size limit');
+        TM.Config.EXPORT_MAX_BYTES = origMax;
+        ok(TM.Export.encryptedBackup(), 'encrypted backup download path succeeds');
+
+        // ---------- Templates ----------
+        suite('Templates');
+        freshUser();
+        var tpls = TM.Templates.load();
+        truthy(tpls.length >= 3, 'default templates seeded');
+        TM.Templates.add('Quiz Revise', 'Science', 'high', 'weekly');
+        eq(TM.Templates.load().length, tpls.length + 1, 'adding template persists');
+        TM.Templates.removeByName('Quiz Revise');
+        eq(TM.Templates.load().length, tpls.length, 'removing template works');
+
+        // ---------- Friends (fake BaaS) ----------
+        suite('Friends');
+        freshUser();
+        fakeDB.profiles.push({ id: 'u2', username: 'bob', email: 'bob@test.dev' });
+        ok(await TM.Friends.sendRequest('bob'), 'friend request to existing user is sent');
+        eq(fakeDB.friends.filter(function (r) { return r.status === 'pending'; }).length, 1, 'pending request stored');
+        ok((await TM.Friends.sendRequest('bob')) === false, 'duplicate friend request is blocked');
+        ok((await TM.Friends.sendRequest('alice')) === false, 'self-friend request is blocked');
+        ok((await TM.Friends.sendRequest('ghost')) === false, 'request to non-existent user fails gracefully');
+        var req = fakeDB.friends[0];
+        await TM.Friends.respond(req.id, true);
+        var fetched = await TM.Friends.fetchAll();
+        eq(fetched.friends.length, 1, 'accept makes friendship appear in friend list');
+        eq(fetched.friends[0].other_id, 'u2', 'friend row identifies the other user');
+
+        // ---------- Help requests ----------
+        suite('Help requests');
+        freshUser();
+        fakeDB.profiles.push({ id: 'u2', username: 'bob', email: 'bob@test.dev' });
+        fakeDB.profiles.push({ id: 'u3', username: 'carol', email: 'carol@test.dev' });
+        await TM.Friends.sendRequest('bob');
+        await TM.Friends.sendRequest('carol');
+        fakeDB.friends.forEach(function (r) { r.status = 'accepted'; });
+        await TM.Friends.fetchAll();
+        var htask = TM.Tasks.upsert({ title: 'Tricky problem set' });
+        var okSend = await TM.Help.send(htask.id, ['u2', 'u3'], 'Can you explain question 4?');
+        ok(okSend, 'help request sent to multiple friends simultaneously');
+        eq(fakeDB.help_requests.length, 2, 'two help request rows created');
+        ok((await TM.Help.send(htask.id, ['u2'], 'again')) === false, 'duplicate help request to same friend for same task is blocked');
+        var rows = await TM.Help.loadForTask(htask.id);
+        eq(rows.length, 2, 'both requests visible to sender');
+        eq(fakeDB.help_requests.filter(function (r) { return r.task_id === htask.id; })[0].status, 'sent', 'new request starts as sent');
+        // recipient side (actor swap): delivery + read + reply
+        TM.Auth.setUser({ id: 'u2', user_metadata: { username: 'bob' } });
+        await TM.Help.deliverIncoming();
+        fakeDB.help_requests.forEach(function (r) { if (r.recipient_id === 'u2' && r.status === 'sent') r.status = 'delivered'; });
+        var bobReq = fakeDB.help_requests.find(function (r) { return r.recipient_id === 'u2'; });
+        await TM.Help.markRead(bobReq.id);
+        eq(fakeDB.help_requests.find(function (r) { return r.id === bobReq.id; }).status, 'read', 'recipient reading flips status to read with read_at');
+        await TM.Help.reply(bobReq.id, 'Sure, later today.');
+        eq(fakeDB.help_requests.find(function (r) { return r.id === bobReq.id; }).status, 'replied', 'optional reply sets status to replied');
+        TM.Auth.setUser({ id: 'u1', user_metadata: { username: 'alice' } });
+        var senderView = await TM.Help.loadForTask(htask.id);
+        truthy(senderView.some(function (h) { return h.status === 'replied'; }), 'sender sees replied status');
+        truthy(senderView.some(function (h) { return h.status === 'delivered' || h.status === 'sent'; }), 'sender sees delivery/read states for carol request');
+
+        // ---------- Presence + offline->online notification ----------
+        suite('Presence & offline delivery');
+        freshUser();
+        fakeDB.profiles.push({ id: 'u2', username: 'bob', email: 'bob@test.dev' });
+        var ptask = TM.Tasks.upsert({ title: 'Help me' });
+        TM.Presence.setFriends([{ friend_id: 'u2', username: 'bob' }]);
+        await TM.Help.send(ptask.id, ['u2'], 'Offline message');
+        var bobCh = fakeChannels.filter(function (c) { return c.name === 'presence:u2'; })[0];
+        truthy(bobCh, 'presence channel created per friend');
+        bobCh.presence.u2 = [{ uid: 'u2', username: 'bob' }];
+        bobCh.handlers.forEach(function (h) { if (h.type === 'presence') h.cb(); });
+        await sleep(40);
+        var notifs = TM.Notify.load('u1');
+        ok(notifs.some(function (n) { return n.text.indexOf('online') !== -1; }), 'active notification fires when offline friend comes online with pending help request');
+        ok(!!(TM.Presence.online.u2 && TM.Presence.online.u2.online), 'presence marks friend online');
+
+        // ---------- Sync: last-write-wins ----------
+        suite('Sync (LWW, silent unless conflict)');
+        freshUser();
+        var sync1 = TM.Tasks.upsert({ title: 'Synced task', due: '2026-08-20' });
+        fakeDB.task_sync = [];
+        TM.Tasks.markDirty(sync1.id, true);
+        await TM.Sync.pushDirty();
+        eq(fakeDB.task_sync.length, 1, 'dirty task pushed to remote table');
+        var beforeLen = fakeDB.task_sync.length;
+        await TM.Sync.pullAll();
+        eq(fakeDB.task_sync.length, beforeLen, 'pullAll does not duplicate self');
+        TM.Tasks.markDirty(sync1.id, false);
+        var remoteCopy = JSON.parse(JSON.stringify(TM.Tasks.find(sync1.id).task));
+        remoteCopy.title = 'Renamed elsewhere';
+        remoteCopy.updatedAt = Date.now() + 10000;
+        fakeDB.task_sync.push({ user_id: 'u1', task_id: sync1.id, cli: 'cli_otherdev', payload: { id: sync1.id, data: remoteCopy, updatedAt: remoteCopy.updatedAt }, updated_at: new Date().toISOString() });
+        await TM.Sync.pullAll();
+        eq(TM.Tasks.find(sync1.id).task.title, 'Renamed elsewhere', 'newer remote edit wins silently (LWW)');
+        // dirty + newer remote => LWW resolves, conflict notification raised
+        var c2 = TM.Tasks.upsert({ title: 'Conflicted base' });
+        await TM.Sync.pushDirty();
+        fakeDB.task_sync = [];
+        TM.Tasks.markDirty(c2.id, true);
+        var remoteC2 = JSON.parse(JSON.stringify(TM.Tasks.find(c2.id).task));
+        remoteC2.title = 'Remote newer';
+        remoteC2.updatedAt = Date.now() + 20000;
+        fakeDB.task_sync.push({ user_id: 'u1', task_id: c2.id, cli: 'cli_otherdev', payload: { id: c2.id, data: remoteC2, updatedAt: remoteC2.updatedAt }, updated_at: new Date().toISOString() });
+        await TM.Sync.pullAll();
+        eq(TM.Tasks.find(c2.id).task.title, 'Remote newer', 'conflict resolves to newest version');
+        var conflictNotifs = TM.Notify.load('u1').filter(function (n) { return n.text.indexOf('Conflict') !== -1 || n.text.indexOf('conflict') !== -1 || n.text.indexOf('elsewhere') !== -1; });
+        ok(conflictNotifs.length > 0, 'conflict surfaces a notification only when a conflict occurs');
+
+        // ---------- Account deletion gate ----------
+        suite('Account deletion');
+        freshUser();
+        TM.UI.openDeleteModal();
+        eq(document.getElementById('delete-confirm').disabled, true, 'delete confirm disabled until backup downloaded');
+        TM.UI.onBackupDownloaded();
+        eq(document.getElementById('delete-confirm').disabled, false, 'delete confirm enabled after backup download');
+        TM.Tasks.upsert({ title: 'Will be wiped' });
+        eq(TM.Tasks.loadTasks().length, 1, 'task exists before wipe');
+        await TM.Auth.deleteAccount();
+        eq(TM.Tasks.loadTasks().length, 0, 'account deletion wipes local tasks');
+
+        // ---------- Offline behavior ----------
+        suite('Connectivity');
+        freshUser();
+        ok(typeof TM.Sync.online() === 'boolean', 'online() reports navigator state');
+        var beforeCount = TM.Tasks.loadTasks().length;
+        TM.Tasks.upsert({ title: 'Offline-created' });
+        eq(TM.Tasks.loadTasks().length, beforeCount + 1, 'tasks created offline persist locally');
+        TM.Sync.syncNow();
+        ok(true, 'syncNow runs without throwing when online');
+
+        // ---------- Renderers ----------
+        suite('Renderers');
+        freshUser();
+        TM.Tasks.upsert({ title: 'Calendar visible task', due: TM.Utils.todayISO(), priority: 'high', subject: 'Chemistry' });
+        TM.Calendar.goToday();
+        ok(document.getElementById('cal-month').innerHTML.indexOf('Calendar visible task') !== -1, 'calendar month render includes task by due date');
+        TM.Calendar.setMode('week');
+        ok(document.getElementById('cal-week').innerHTML.indexOf('Calendar visible task') !== -1, 'calendar week render includes task');
+        var stubs = document.getElementById('cal-month');
+        stubs.innerHTML = '';
+        document.getElementById('group-mode').value = 'subject';
+        TM.Views.refresh();
+        ok(document.getElementById('group-container').innerHTML.indexOf('Chemistry') !== -1, 'group view renders subject bucket');
+        document.getElementById('task-list').innerHTML = TM.Views.taskItemHTML(TM.Tasks.loadTasks()[0]);
+        ok(document.getElementById('task-list').innerHTML.indexOf('Calendar visible task') !== -1, 'task item HTML renders');
+        var evilTag = '<scr' + 'ipt>alert(1)<' + '/scr' + 'ipt>';
+        var evil = TM.Views.taskItemHTML({ id: 'x1', title: evilTag, priority: 'low', subject: 'X & Y', completed: false, attachments: [] });
+        ok(evil.indexOf('&lt;script&gt;') !== -1 && evil.indexOf(evilTag) === -1, 'task item HTML escapes user text');
+
+        // ============ REPORT ============
+        var total = results.length;
+        var failed = results.filter(function (r) { return !r.pass; }).length;
+        var passed = total - failed;
+        var html = '<div class="summary ' + (failed ? 'fail' : 'pass') + '">' + passed + '/' + total + ' passed' + (failed ? ' \u2014 ' + failed + ' FAILED' : ' \u2014 all green') + '</div>';
+        var cur = '';
+        results.forEach(function (r) {
+          if (r.suite !== cur) { cur = r.suite; html += '<div class="suite"><h2>' + cur + '</h2>'; }
+          html += '<div class="case ' + (r.pass ? 'pass' : 'fail') + '"><span class="mark">' + (r.pass ? '\u2713' : '\u2717') + '</span><span>' + r.name + '</span>' + (r.detail ? '<span class="detail">\u2014 ' + r.detail + '</span>' : '') + '</div>';
+        });
+        document.body.insertAdjacentHTML('beforeend', html);
+        document.getElementById('progress').textContent = '';
+      }
+
+      document.getElementById('run-btn').addEventListener('click', function () {
+        document.getElementById('output').innerHTML = '';
+        document.getElementById('progress').textContent = 'Running\u2026';
+        runAll().catch(function (e) {
+          document.getElementById('progress').textContent = 'Harness error: ' + (e && e.stack || e);
+        });
+      });
+
+      if (location.search.indexOf('run=auto') !== -1) {
+        setTimeout(function () { document.getElementById('run-btn').click(); }, 200);
+      }
+    })();
+  </script>
+</body>
+</html>

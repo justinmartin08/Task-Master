@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Task Master — a schoolwork tracker with Supabase auth, realtime friends/help, encrypted local tasks, and IndexedDB attachments." />
+  <meta name="theme-color" content="#1e63d6" />
+  <title>Task Master — Schoolwork Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- CryptoJS v4 (CDN) for AES-256 localStorage encryption -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-d+tbQjOHM5wi0x8K8Compy5NGCw7QoN7HNux4nMq8K8lNV7v9eydZFzaJ3RxbF4kwwf7+I8T8Fk6q2" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
+  <!-- Supabase JS v2 (CDN) for auth, friends, help requests, presence, realtime sync -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/dist/umd/supabase.min.js"></script>
+  <!-- User config (gitignored). If absent, app runs in local-only/demo mode. -->
+  <script src="config.js" onerror="window.__TM_NO_CONFIG__ = true;"></script>
+</head>
+<body>
+  <!-- ============= CONNECTIVITY INDICATOR ============= -->
+  <div id="conn-indicator" class="conn-indicator" role="status" aria-live="polite" hidden>
+    <span class="conn-dot" id="conn-dot"></span>
+    <span id="conn-text">Offline</span>
+  </div>
+
+  <!-- ============= AUTH VIEW ============= -->
+  <main id="view-auth" class="auth-shell">
+    <div class="auth-card">
+      <h1 class="app-title">Task Master</h1>
+      <p class="app-sub">Keep your schoolwork in order. Encrypted on this device, syncs when you're online.</p>
+
+      <div class="auth-tabs" role="tablist">
+        <button id="tab-login"    class="auth-tab is-active" role="tab" aria-selected="true"  aria-controls="panel-login"    type="button">Log in</button>
+        <button id="tab-register" class="auth-tab"            role="tab" aria-selected="false" aria-controls="panel-register" type="button">Register</button>
+      </div>
+
+      <form id="panel-login" class="auth-form is-active" novalidate>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input type="email" id="login-email" autocomplete="email" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Password</span>
+          <input type="password" id="login-password" autocomplete="current-password" required />
+        </label>
+        <label class="field field-inline">
+          <input type="checkbox" id="login-persist" checked />
+          <span>Keep me logged in on this device</span>
+        </label>
+        <button type="submit" class="btn btn-primary">Log in</button>
+      </form>
+
+      <form id="panel-register" class="auth-form" novalidate hidden>
+        <label class="field">
+          <span class="field-label">Display name</span>
+          <input type="text" id="reg-username" autocomplete="username" maxlength="32" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input type="email" id="reg-email" autocomplete="email" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Password <span class="hint">(min 8 chars)</span></span>
+          <input type="password" id="reg-password" autocomplete="new-password" minlength="8" required />
+        </label>
+        <button type="submit" class="btn btn-primary">Create account</button>
+      </form>
+
+      <div id="auth-error" class="auth-error" role="alert" hidden></div>
+      <p class="auth-foot" id="auth-foot">Local-only mode auto-disabled when <code>config.js</code> is present.</p>
+    </div>
+  </main>
+
+  <!-- ============= MAIN APP VIEW ============= -->
+  <div id="view-app" class="app-shell" hidden>
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
+        <span class="brand">Task Master</span>
+      </div>
+      <nav class="view-switcher" id="view-switcher" role="tablist" aria-label="View mode">
+        <button class="view-tab is-active" data-view="list"      role="tab" aria-selected="true">List</button>
+        <button class="view-tab"            data-view="group"    role="tab" aria-selected="false">Group</button>
+        <button class="view-tab"            data-view="calendar" role="tab" aria-selected="false">Calendar</button>
+        <button class="view-tab"            data-view="dashboard" role="tab" aria-selected="false">Dashboard</button>
+      </nav>
+      <div class="topbar-right">
+        <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
+          <span id="notify-badge" class="badge" hidden>0</span>
+          <span aria-hidden="true">&#128276;</span>
+        </button>
+        <button class="icon-btn" id="friends-btn" aria-label="Friends" title="Friends">&#128101;</button>
+        <button class="btn btn-ghost" id="logout-btn" type="button">Log out</button>
+      </div>
+    </header>
+
+    <aside class="sidenav" id="sidenav" aria-label="Side navigation">
+      <button class="btn btn-primary btn-block" id="quick-add-btn" type="button">+ New task</button>
+
+      <div class="templates-bar" id="templates-bar" aria-label="Quick-add templates">
+        <h3>Quick add</h3>
+        <div class="template-chips" id="template-chips"></div>
+        <button class="btn btn-ghost btn-sm" id="template-manage" type="button">Manage templates…</button>
+      </div>
+
+      <div class="filters">
+        <h3>Sort / group</h3>
+        <label class="field field-inline">
+          <select id="sort-mode">
+            <option value="dueAsc">Due date (earliest)</option>
+            <option value="dueDesc">Due date (latest)</option>
+            <option value="priorityDesc">Priority (high → low)</option>
+            <option value="priorityAsc">Priority (low → high)</option>
+            <option value="titleAsc">Title (A → Z)</option>
+            <option value="createdDesc">Recently added</option>
+          </select>
+        </label>
+        <label class="field field-inline">
+          <span>Subject</span>
+          <select id="filter-subject">
+            <option value="">All</option>
+          </select>
+        </label>
+        <label class="field field-inline">
+          <span>Priority</span>
+          <select id="filter-priority">
+            <option value="">All</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label class="field field-inline">
+          <span>Status</span>
+          <select id="filter-status">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="sidenav-foot">
+        <button class="btn btn-ghost btn-block btn-sm" id="export-csv-btn"  type="button">Export CSV</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="export-json-btn" type="button">Export JSON</button>
+        <button class="btn btn-ghost btn-block btn-sm" id="backup-btn"       type="button">Download encrypted backup</button>
+        <button class="btn btn-danger-ghost btn-block btn-sm" id="delete-account-btn" type="button">Delete account…</button>
+      </div>
+    </aside>
+
+    <section class="dashboard-bar" id="dashboard-bar" aria-label="Summary">
+      <div class="metric"><span class="metric-num"  id="m-completion">0%</span><span class="metric-label">Completion</span></div>
+      <div class="metric"><span class="metric-num"  id="m-upcoming">0</span><span class="metric-label">Due ≤ 7 days</span></div>
+      <div class="metric"><span class="metric-num"  id="m-overdue">0</span><span class="metric-label">Overdue</span></div>
+      <div class="metric"><span class="metric-num"  id="m-total">0</span><span class="metric-label">Total active</span></div>
+    </section>
+
+    <section class="view-body" id="view-body">
+      <!-- LIST VIEW -->
+      <div id="pane-list" class="pane is-active" role="tabpanel" aria-label="List view">
+        <ul id="task-list" class="task-list" aria-live="polite"></ul>
+        <p id="list-empty" class="empty" hidden>No tasks yet. Click <strong>+ New task</strong> or pick a quick-add template.</p>
+      </div>
+
+      <!-- GROUP VIEW -->
+      <div id="pane-group" class="pane" role="tabpanel" aria-label="Grouped view" hidden>
+        <div class="group-by">
+          <label>Group by
+            <select id="group-mode">
+              <option value="subject">Subject</option>
+              <option value="priority">Priority</option>
+              <option value="due">Due date</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
+        </div>
+        <div id="group-container"></div>
+      </div>
+
+      <!-- CALENDAR VIEW -->
+      <div id="pane-calendar" class="pane" role="tabpanel" aria-label="Calendar view" hidden>
+        <div class="cal-toolbar">
+          <button class="icon-btn" id="cal-prev" aria-label="Previous">&#8249;</button>
+          <button class="btn btn-ghost btn-sm" id="cal-today" type="button">Today</button>
+          <button class="icon-btn" id="cal-next" aria-label="Next">&#8250;</button>
+          <span id="cal-label" class="cal-label"></span>
+          <div class="cal-toggle">
+            <button class="view-tab btn-sm is-active" data-cal="month" type="button">Month</button>
+            <button class="view-tab btn-sm"            data-cal="week"  type="button">Week</button>
+          </div>
+        </div>
+        <div id="cal-month" class="cal-grid cal-month"></div>
+        <div id="cal-week"  class="cal-grid cal-week" hidden></div>
+      </div>
+
+      <!-- DASHBOARD VIEW -->
+      <div id="pane-dashboard" class="pane" role="tabpanel" aria-label="Dashboard view" hidden>
+        <div class="dash-grid">
+          <div class="dash-card"><h3>Completion rate</h3><div class="donut" id="donut-completion"><span id="donut-num">0%</span></div></div>
+          <div class="dash-card"><h3>Upcoming (7 days)</h3><div class="dash-big" id="dash-upcoming">0</div></div>
+          <div class="dash-card"><h3>Overdue</h3><div class="dash-big dash-warn" id="dash-overdue">0</div></div>
+          <div class="dash-card"><h3>By subject</h3><ul id="dash-subjects" class="dash-list"></ul></div>
+          <div class="dash-card"><h3>By priority</h3><ul id="dash-priority" class="dash-list"></ul></div>
+          <div class="dash-card"><h3>By day (next 14)</h3><ul id="dash-day"     class="dash-list"></ul></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============= TASK EDITOR MODAL ============= -->
+  <div class="modal" id="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head">
+        <h2 id="task-modal-title">New task</h2>
+        <button class="icon-btn" id="task-close" aria-label="Close">&times;</button>
+      </header>
+      <form id="task-form" class="modal-body" novalidate>
+        <input type="hidden" id="task-id" />
+        <input type="hidden" id="task-series-id" />
+        <input type="hidden" id="task-instance-id" />
+        <input type="hidden" id="task-edit-scope" value="series" />
+
+        <label class="field">
+          <span class="field-label">Title <span class="req">*</span></span>
+          <input type="text" id="task-title" maxlength="200" required />
+          <span id="err-title" class="err" hidden>Title is required.</span>
+        </label>
+
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label">Due date</span>
+            <input type="date" id="task-due" />
+          </label>
+          <label class="field">
+            <span class="field-label">Subject</span>
+            <input type="text" id="task-subject" list="subject-list" placeholder="e.g. Math" />
+            <datalist id="subject-list">
+              <!-- Predefined subjects injected by JS; user can type custom. -->
+            </datalist>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field-label">Priority</span>
+          <div class="seg" id="priority-seg" role="radiogroup" aria-label="Priority">
+            <button type="button" class="seg-btn" data-priority="high"   role="radio" aria-checked="false">High</button>
+            <button type="button" class="seg-btn is-active" data-priority="medium" role="radio" aria-checked="true">Medium</button>
+            <button type="button" class="seg-btn" data-priority="low"    role="radio" aria-checked="false">Low</button>
+          </div>
+        </label>
+
+        <fieldset class="recur">
+          <legend>Recurrence</legend>
+          <label class="field field-inline">
+            <select id="recur-freq">
+              <option value="none">One-time</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Bi-weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </label>
+          <label class="field field-inline">
+            <span>End after</span>
+            <input type="number" id="recur-count" min="1" max="365" value="10" />
+            <span>occurrences</span>
+          </label>
+        </fieldset>
+
+        <div class="attachments-block">
+          <div class="attach-head">
+            <h3>Attachments</h3>
+            <span id="attach-size" class="attach-size">0 / 5 MB</span>
+          </div>
+          <div id="attach-list" class="attach-list"></div>
+          <div class="attach-actions">
+            <label class="btn btn-ghost btn-sm" for="attach-file">+ File</label>
+            <input type="file" id="attach-file" multiple hidden />
+            <button class="btn btn-ghost btn-sm" id="attach-link-btn" type="button">+ Link</button>
+            <button class="btn btn-ghost btn-sm" id="attach-note-btn" type="button">+ Note</button>
+          </div>
+        </div>
+
+        <footer class="modal-foot">
+          <div id="task-edit-scope-row" class="edit-scope-row" hidden>
+            <span>Editing:</span>
+            <label class="field-inline"><input type="radio" name="edit-scope" value="instance" /> This instance only</label>
+            <label class="field-inline"><input type="radio" name="edit-scope" value="series" checked /> This entire series</label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-danger-ghost" id="task-delete" hidden>Delete task</button>
+            <button type="button" class="btn btn-ghost" id="task-cancel">Cancel</button>
+            <button type="submit"  class="btn btn-primary" id="task-save">Save</button>
+          </div>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============= TEMPLATE MANAGER MODAL ============= -->
+  <div class="modal" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="template-modal-title">Manage templates</h2><button class="icon-btn" id="template-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body">
+        <form id="template-form" class="grid-2">
+          <label class="field"><span class="field-label">Template name</span><input type="text" id="tmpl-name" maxlength="80" required /></label>
+          <label class="field"><span class="field-label">Subject</span><input type="text" id="tmpl-subject" list="subject-list" /></label>
+          <label class="field"><span class="field-label">Priority</span>
+            <select id="tmpl-priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+          </label>
+          <label class="field"><span class="field-label">Recurrence</span>
+            <select id="tmpl-recur"><option value="none">One-time</option><option value="daily">Daily</option><option value="weekly" selected>Weekly</option><option value="biweekly">Bi-weekly</option><option value="monthly">Monthly</option></select>
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary btn-sm">Save template</button>
+          </div>
+        </form>
+        <ul id="template-list" class="template-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= FRIENDS MODAL ============= -->
+  <div class="modal" id="friends-modal" role="dialog" aria-modal="true" aria-labelledby="friends-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="friends-modal-title">Friends</h2><button class="icon-btn" id="friends-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body">
+        <div class="friends-presence-note" id="friends-presence-note" hidden></div>
+        <form id="friend-add-form" class="grid-2">
+          <label class="field"><span class="field-label">Add by username</span><input type="text" id="friend-username" maxlength="32" required /></label>
+          <div class="actions"><button type="submit" class="btn btn-primary btn-sm">Send request</button></div>
+        </form>
+
+        <h3>Pending requests</h3>
+        <ul id="pending-list" class="friend-list"></ul>
+
+        <h3>Your friends</h3>
+        <ul id="friends-list" class="friend-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= HELP REQUEST MODAL ============= -->
+  <div class="modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="help-modal-title">Send help request</h2><button class="icon-btn" id="help-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body">
+        <p class="help-task" id="help-task-name"></p>
+        <form id="help-form" novalidate>
+          <fieldset class="help-recipients">
+            <legend>Pick friends</legend>
+            <ul id="help-friend-list" class="friend-list"></ul>
+          </fieldset>
+          <label class="field"><span class="field-label">Message (optional)</span><textarea id="help-message" rows="3" maxlength="500"></textarea></label>
+          <div class="actions"><button type="submit" class="btn btn-primary">Send request</button></div>
+        </form>
+
+        <h3>Existing requests for this task</h3>
+        <ul id="help-existing" class="help-existing"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= NOTIFICATIONS PANEL ============= -->
+  <div class="modal" id="notify-modal" role="dialog" aria-modal="true" aria-labelledby="notify-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="notify-modal-title">Notifications</h2><button class="icon-btn" id="notify-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body">
+        <label class="field field-inline"><input type="checkbox" id="notify-browser-toggle" /> Enable browser notifications</label>
+        <ul id="notify-list" class="notify-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= DELETE ACCOUNT MODAL ============= -->
+  <div class="modal" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="delete-modal-title">Delete account</h2><button class="icon-btn" id="delete-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body">
+        <div class="warn" id="delete-warn">This will permanently remove your local tasks, attachments, friends, and help history from this device and from the Supabase backend. <strong>This cannot be undone.</strong></div>
+        <div class="warn-backup" id="delete-warn-backup">You must download an encrypted backup before deletion can proceed.</div>
+        <div class="actions">
+          <button class="btn btn-ghost"   id="delete-download" type="button">Download backup</button>
+          <button class="btn btn-danger"  id="delete-confirm"  type="button" disabled>Confirm delete</button>
+          <button class="btn btn-ghost"   id="delete-cancel"   type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= TOASTS ============= -->
+  <div id="toast-host" class="toast-host" role="region" aria-label="Notifications" aria-live="polite"></div>
+
+  <!-- ============= OFFLINE BANNER ============= -->
+  <div id="offline-banner" class="offline-banner" hidden>
+    You are offline. Changes are saved locally and will sync silently when you reconnect.
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

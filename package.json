@@ -1,0 +1,12 @@
+{
+  "name": "task-master",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vanilla-JS schoolwork tracker with Supabase auth + realtime, encrypted localStorage tasks, and IndexedDB attachments.",
+  "scripts": {
+    "start": "echo Open index.html directly, or deploy to Netlify/Vercel. No build step.",
+    "test": "echo Open test.html in a browser (append ?run=auto to auto-run)."
+  },
+  "keywords": ["todo", "schoolwork", "supabase", "vanilla-js", "offline-first"],
+  "license": "MIT"
+}
