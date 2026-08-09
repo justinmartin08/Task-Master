@@ -2465,13 +2465,6 @@
       if (uid) settings = TM.Storage.get(uid, 'settings', {}) || {};
       var toggle = $('notify-browser-toggle');
       if (toggle) toggle.checked = !!(settings.browserNotif);
-      var foot = $('auth-foot');
-      if (foot) {
-        foot.textContent = TM.Config.demo
-          ? 'Demo mode: no BaaS configured. Register/log in locally \u2014 friends, help, and cross-device sync need Supabase (config.js).'
-          : '';
-        if (!TM.Config.demo) foot.style.display = 'none';
-      }
       showAuthTab('login');
     }
 
