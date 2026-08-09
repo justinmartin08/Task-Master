@@ -15,7 +15,7 @@ stub DOM, then runs ~70 assertions across the suites below.
 | Suite | What it verifies |
 | --- | --- |
 | Crypto & Storage | AES round-trip, wrong-uid returns null, malformed ciphertext returns null, encrypted `localStorage` get/set |
-| Auth | Registration validation (blank/invalid email/short password), duplicate registration rejected, login with bad password rejected, missing fields rejected, successful login/logout |
+| Auth | Registration validation (blank/invalid email/short password), duplicate registration rejected, login with bad password rejected, missing fields rejected, successful login/logout, session restored from promise-based getSession, no-session resolves null, email-confirmation state surfaced gracefully |
 | Tasks CRUD | Upsert/persist/find/remove, blank and invalid titles rejected, invalid due dates nulled, missing-task remove returns false |
 | 7-day purge | Completed > 7 days hard-deleted with no recovery, < 7 days survives, unchecking clears `completedAt`, re-completion resets the timer, boundary at exactly 7 days survives |
 | Sorting & views | `dueAsc` ordering with no-date last, priority ordering, group buckets (Overdue / No subject), dashboard metrics (total, overdue, completion %, upcoming 7-day) |

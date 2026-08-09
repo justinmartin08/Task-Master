@@ -1525,12 +1525,68 @@
         return Promise.resolve(null);
       }
       try { makeClient(); } catch (e) { return Promise.resolve(null); }
-      var session = client().auth.getSession();
-      if (session && session.data && session.data.session && session.data.session.user) {
-        setUser(session.data.session.user);
-        return fetchUsername(false).then(function () { return { uid: userId, username: userName }; });
+      watchAuth();
+      // Supabase v2: getSession() returns a Promise — chain it, don't read it synchronously.
+      return resolveSession().then(function (res) {
+        var data = (res && res.data) || {};
+        if (data.session && data.session.user) {
+          setUser(data.session.user);
+          return fetchUsername(false).then(function () { return { uid: userId, username: userName }; });
+        }
+        return null;
+      });
+    }
+    function resolveSession() {
+      var res = client().auth.getSession();
+      return (res && typeof res.then === 'function') ? res : Promise.resolve(res || { data: { session: null } });
+    }
+    var watching = false;
+    function watchAuth() {
+      if (watching) return;
+      watching = true;
+      client().auth.onAuthStateChange(function (event, session) {
+        if (!session || !session.user) {
+          if (event === 'SIGNED_OUT' && userId) {
+            setUser(null);
+            if (TM.App && TM.App.showAuth) TM.App.showAuth();
+          }
+          return;
+        }
+        // Keep user metadata fresh across token refreshes / reloads / other tabs.
+        setUser(session.user);
+        if (session.user.user_metadata && session.user.user_metadata.username) userName = session.user.user_metadata.username;
+        fetchUsername(false);
+      });
+    }
+    function friendlyAuthError(err) {
+      if (!err) return null;
+      var msg = String(err.message || err.error_description || '');
+      if (/invalid login credentials/i.test(msg)) return new Error('Incorrect email or password.');
+      if (/email not confirmed/i.test(msg)) {
+        var e = new Error('Please confirm your email address, then log in.');
+        e.code = 'email_confirmation_required';
+        return e;
       }
-      return Promise.resolve(null);
+      if (/user already registered/i.test(msg)) return new Error('An account with that email already exists. Try logging in.');
+      if (/rate limit|too many requests/i.test(msg)) return new Error('Too many attempts — wait a moment and try again.');
+      return err;
+    }
+    function syncProfile(user) {
+      if (!user) return Promise.resolve();
+      return client().from('profiles').select('username').eq('id', user.id).maybeSingle().then(function (r) {
+        if (r.error || !r.data) {
+          // Profile row missing (account predates the DB trigger) — backfill it.
+          return client().from('profiles').insert({
+            id: user.id,
+            username: (user.user_metadata && user.user_metadata.username) || userName || 'user',
+            email: user.email
+          }).then(function (pr) {
+            if (!pr.error && userName) TM.Storage.set(userId, 'user-meta', { username: userName });
+          }).catch(function () {});
+        }
+        userName = r.data.username;
+        TM.Storage.set(userId, 'user-meta', { username: userName });
+      }).catch(function () {});
     }
     function validateReg(username, email, password) {
       if (!username || !String(username).trim()) return 'Display name is required.';
@@ -1556,14 +1612,29 @@
         email: email, password: password,
         options: { data: { username: username } }
       }).then(function (r) {
-        if (r.error) throw r.error;
-        var usr = r.data.user;
+        if (r.error) throw friendlyAuthError(r.error);
+        var data = r.data || {};
+        var usr = data.user || (data.session && data.session.user);
+        if (!usr) throw new Error('Registration incomplete — please try again.');
         return client().from('profiles').insert({ id: usr.id, username: username, email: email }).then(function (pr) {
           if (pr.error) { /* profile may be auto-created by DB trigger; swallow */ }
-          setUser(usr);
-          userName = username;
-          saveUsername(username);
-          return { uid: usr.id, username: username };
+          if (data.session && data.session.user) {
+            setUser(data.session.user);
+            userName = username;
+            saveUsername(username);
+            return { uid: userId, username: userName };
+          }
+          // No session in the signUp response (email confirmation enabled, or
+          // session creation deferred): try an immediate sign-in. When that is
+          // rejected with "email not confirmed", the caller shows a graceful
+          // confirmation state instead of a dead end.
+          return client().auth.signInWithPassword({ email: email, password: password }).then(function (lr) {
+            if (lr.error) throw friendlyAuthError(lr.error);
+            setUser(lr.data.user);
+            userName = username;
+            saveUsername(username);
+            return { uid: userId, username: userName };
+          });
         });
       });
     }
@@ -1582,9 +1653,9 @@
         email: email, password: password,
         options: { persistSession: !!persist, autoRefreshToken: !!persist }
       }).then(function (r) {
-        if (r.error) throw r.error;
+        if (r.error) throw friendlyAuthError(r.error);
         setUser(r.data.user);
-        return fetchUsername(false).then(function () { return { uid: userId, username: userName }; });
+        return syncProfile(r.data.user).then(function () { return { uid: userId, username: userName }; });
       });
     }
     function logout() {
@@ -2175,6 +2246,16 @@
     }
 
     /* ---------- wiring ---------- */
+    function slideTabIndicator() {
+      var ind = $('auth-tab-indicator');
+      if (!ind) return;
+      var active = document.querySelector('#view-auth .auth-tab.is-active');
+      var tabs = document.querySelector('#view-auth .auth-tabs');
+      if (!active || !tabs) return;
+      var tb = tabs.getBoundingClientRect(), ab = active.getBoundingClientRect();
+      ind.style.width = Math.round(ab.width) + 'px';
+      ind.style.transform = 'translateX(' + Math.round(ab.left - tb.left) + 'px)';
+    }
     function showAuthTab(tab) {
       var login = tab === 'login';
       $('tab-login').classList.toggle('is-active', login);
@@ -2186,13 +2267,24 @@
       $('panel-register').classList.toggle('is-active', !login);
       $('panel-register').hidden = login;
       $('auth-error').hidden = true;
+      $('auth-error').classList.remove('is-success');
+      slideTabIndicator();
     }
     function showAuthError(msg) {
       var er = $('auth-error');
       er.textContent = msg;
+      er.classList.remove('is-success');
+      er.hidden = false;
+    }
+    function showAuthSuccess(msg) {
+      var er = $('auth-error');
+      er.textContent = msg;
+      er.classList.add('is-success');
       er.hidden = false;
     }
     function setAuthBusy(busy) {
+      var form = document.querySelector('#view-auth .auth-form.is-active');
+      if (form) form.classList.toggle('is-loading', busy);
       document.querySelectorAll('#view-auth button[type="submit"]').forEach(function (b) { b.disabled = busy; });
     }
     function bind() {
@@ -2237,6 +2329,13 @@
           if (TM.App && TM.App.enterApp) TM.App.enterApp(res);
         }).catch(function (err) {
           setAuthBusy(false);
+          if (err && err.code === 'email_confirmation_required') {
+            showAuthTab('login');
+            $('login-email').value = email;
+            $('login-email').focus();
+            showAuthSuccess('Account created! Check your inbox to confirm your email, then log in.');
+            return;
+          }
           showAuthError((err && err.message) || 'Registration failed.');
         });
       });
@@ -2451,6 +2550,7 @@
       // ---- connectivity ----
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      window.addEventListener('resize', slideTabIndicator);
 
       // ---- keyboard ----
       document.addEventListener('keydown', function (e) {

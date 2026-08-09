@@ -203,7 +203,13 @@
     FakeChannel.prototype.presenceState = function () { return this.presence; };
 
     var fakeAuth = {
-      getSession: function () { return { data: { session: null } }; },
+      sessionOverride: null,
+      signInError: null,
+      getSession: function () {
+        if (fakeAuth.sessionOverride) return Promise.resolve({ data: { session: { user: fakeAuth.sessionOverride.user, access_token: 'tok' } } });
+        return { data: { session: null } };
+      },
+      onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
       signUp: function (opts) {
         var existing = fakeDB.profiles.some(function (p) { return p.email === opts.email; });
         if (existing) return Promise.resolve({ data: { user: null }, error: { message: 'User already registered' } });
@@ -211,6 +217,7 @@
         return Promise.resolve({ data: { user: user }, error: null });
       },
       signInWithPassword: function (opts) {
+        if (fakeAuth.signInError) return Promise.resolve({ data: { user: null, session: null }, error: fakeAuth.signInError });
         var p = fakeDB.profiles.find(function (x) { return x.email === opts.email; });
         if (!p || opts.password !== 'password1') return Promise.resolve({ data: { user: null, session: null }, error: { message: 'Invalid login credentials' } });
         return Promise.resolve({ data: { user: { id: p.id, email: p.email, user_metadata: { username: p.username } }, session: {} }, error: null });
@@ -296,6 +303,22 @@
         truthy(login && login.uid === 'u1', 'login succeeds with valid credentials');
         await TM.Auth.logout();
         ok(true, 'logout completes (multi-student: session can be swapped)');
+
+        // Session persistence + confirmation-state correctness (Supabase v2 getSession returns a Promise)
+        var origUrl = TM.Config.url, origKey = TM.Config.anonKey;
+        TM.Config.url = 'https://fake.supabase.co'; TM.Config.anonKey = 'anon';
+        fakeAuth.sessionOverride = { user: { id: 'u1', email: 'alice@test.dev', user_metadata: { username: 'alice' } } };
+        var init1 = await TM.Auth.init();
+        truthy(init1 && init1.uid === 'u1', 'init restores session from promise-based getSession');
+        fakeAuth.sessionOverride = null;
+        var init2 = await TM.Auth.init();
+        ok(init2 === null, 'init resolves null when no stored session');
+        fakeAuth.signInError = { message: 'Email not confirmed' };
+        var confErr = null;
+        try { await TM.Auth.register('conf', 'conf@test.dev', 'password1'); } catch (e) { confErr = e; }
+        truthy(confErr && confErr.code === 'email_confirmation_required', 'register surfaces email confirmation state gracefully');
+        fakeAuth.signInError = null;
+        TM.Config.url = origUrl; TM.Config.anonKey = origKey;
 
         // ---------- Tasks: CRUD + persistence ----------
         suite('Tasks CRUD & persistence');
