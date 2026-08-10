@@ -209,14 +209,6 @@
         </button>
       </div>
 
-      <div class="templates-bar" id="templates-bar" aria-label="Quick-add templates">
-        <div class="sidenav-section-head">
-          <h3>Quick Add</h3>
-        </div>
-        <div class="template-chips" id="template-chips"></div>
-        <button class="btn btn-ghost btn-sm btn-manage-templates" id="template-manage" type="button">Manage templates…</button>
-      </div>
-
       <div class="filters">
         <div class="sidenav-section-head">
           <h3>Filters & Sort</h3>
@@ -420,10 +412,10 @@
               <option value="monthly">Monthly</option>
             </select>
           </label>
-          <label class="field field-inline">
-            <span>End after</span>
+          <label class="field field-inline recur-end recur-end-collapsed" id="recur-end-group" aria-hidden="true">
+            <span class="recur-end-label">End after</span>
             <input type="number" id="recur-count" min="1" max="365" value="10" />
-            <span>occurrences</span>
+            <span class="recur-end-suffix">occurrences</span>
           </label>
         </fieldset>
 

@@ -1105,7 +1105,6 @@
       renderGroup();
       if (TM.Calendar) TM.Calendar.render();
       renderDashboardBar();
-      if (TM.UI && TM.UI.renderTemplates) TM.UI.renderTemplates();
       if (TM.Presence && TM.Presence.update) TM.Presence.update();
     }
     function setView(v) {
@@ -1771,14 +1770,6 @@
     }
 
     /* ---------- templates ---------- */
-    function renderTemplates() {
-      var chips = $('template-chips');
-      var tpls = TM.Templates.load();
-      if (!tpls.length) chips.innerHTML = '<span class="empty">No templates.</span>';
-      else chips.innerHTML = tpls.map(function (t) {
-        return '<button class="template-chip" data-tpl="' + U.escapeHTML(t.name) + '">' + U.escapeHTML(t.name) + '</button>';
-      }).join('');
-    }
     function renderTemplateManager() {
       var list = $('template-list');
       var tpls = TM.Templates.load();
@@ -1787,21 +1778,6 @@
           '<span class="template-actions"><button class="btn btn-ghost btn-sm" data-tmpl-del="' + U.escapeHTML(t.name) + '">Remove</button></span></li>';
       }).join('') : '<li class="empty-item">No templates yet.</li>';
     }
-    function quickAddTemplate(name) {
-      var tpls = TM.Templates.load();
-      var t = null;
-      tpls.forEach(function (x) { if (x.name === name) t = x; });
-      if (!t) return;
-      var due = TM.Templates.resolveDue(t.freq);
-      if (t.freq && t.freq !== 'none') {
-        TM.Tasks.createSeries({ title: t.name, subject: t.subject, priority: t.priority, freq: t.freq, count: 10, start: due || U.todayISO() });
-        toast('Created "' + t.name + '" recurring series.', 'ok');
-      } else {
-        TM.Tasks.upsert({ title: t.name, subject: t.subject, priority: t.priority, due: due });
-        toast('Added "' + t.name + '"' + (due ? ' \u2014 due ' + U.fmtDate(due) : '') + '.', 'ok');
-      }
-    }
-
     /* ---------- task modal ---------- */
     function openNewTask() {
       editingTask = null;
@@ -1817,6 +1793,7 @@
       setPriority('medium');
       $('recur-freq').value = 'none';
       $('recur-count').value = 10;
+      updateRecurEnd();
       $('task-edit-scope-row').hidden = true;
       $('task-delete').hidden = true;
       renderAttachList('');
@@ -1849,6 +1826,7 @@
         $('recur-freq').value = 'none';
         $('task-edit-scope-row').hidden = true;
       }
+      updateRecurEnd();
       $('task-delete').hidden = false;
       renderAttachList(t.id);
       openModal('task-modal');
@@ -1866,6 +1844,16 @@
     function currentPriority() {
       var active = document.querySelector('#priority-seg .seg-btn.is-active');
       return active ? active.getAttribute('data-priority') : 'medium';
+    }
+    function updateRecurEnd() {
+      var grp = $('recur-end-group');
+      if (!grp) return;
+      var freqEl = $('recur-freq');
+      var show = !!freqEl && freqEl.value !== 'none';
+      grp.classList.toggle('recur-end-collapsed', !show);
+      grp.setAttribute('aria-hidden', show ? 'false' : 'true');
+      var input = grp.querySelector('#recur-count');
+      if (input) input.disabled = !show;
     }
 
     /* ---------- attachments ---------- */
@@ -2450,16 +2438,8 @@
         }
       });
 
-      // ---- quick add & templates ----
+      // ---- new task & template manager modal ----
       $('quick-add-btn').addEventListener('click', openNewTask);
-      $('template-chips').addEventListener('click', function (e) {
-        var b = e.target.closest ? e.target.closest('[data-tpl]') : null;
-        if (b) quickAddTemplate(b.getAttribute('data-tpl'));
-      });
-      $('template-manage').addEventListener('click', function () {
-        renderTemplateManager();
-        openModal('template-modal');
-      });
       $('template-close').addEventListener('click', function () {
         closeModal('template-modal');
       });
@@ -2487,6 +2467,7 @@
       document.querySelectorAll('#priority-seg .seg-btn').forEach(function (b) {
         b.addEventListener('click', function () { setPriority(b.getAttribute('data-priority')); });
       });
+      $('recur-freq').addEventListener('change', updateRecurEnd);
       document.querySelectorAll('input[name="edit-scope"]').forEach(function (r) {
         r.addEventListener('change', function () { editingScope = r.value; });
       });
@@ -2655,7 +2636,7 @@
 
     return {
       bind: bind, bootFills: bootFills, openNewTask: openNewTask, openEditById: openEditById, openTaskById: openEditById,
-      renderTemplates: renderTemplates, openDeleteModal: openDeleteModal, onBackupDownloaded: onBackupDownloaded,
+      openDeleteModal: openDeleteModal, onBackupDownloaded: onBackupDownloaded,
       updateNotifyBadge: updateNotifyBadge, renderNotificationList: renderNotificationList,
       populateFriendPresence: populateFriendPresence, refreshHelp: refreshHelp,
       renderFriendsModal: renderFriendsModal, closeAllModals: closeAllModals, isAppVisible: isAppVisible,
@@ -2687,7 +2668,6 @@
       document.getElementById('view-app').hidden = false;
       document.getElementById('conn-indicator').hidden = false;
       TM.Views.refresh();
-      TM.UI.renderTemplates();
       TM.UI.updateNotifyBadge();
       if (!TM.Config.demo) {
         TM.Help.deliverIncoming();
