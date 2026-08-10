@@ -1043,14 +1043,24 @@ textarea { resize: vertical; min-height: 64px; }
   display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
 }
 
-/* Friends */
-.friend-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.friend-item {
-  display: grid;
-  grid-template-columns: 8px 1fr auto;
-  gap: 10px;
+/* Inline Input + Button Group */
+.input-btn-group {
+  display: flex;
+  gap: 8px;
   align-items: center;
-  padding: 8px 10px;
+  width: 100%;
+}
+.input-btn-group input { flex: 1; }
+.input-btn-group .btn { white-space: nowrap; }
+
+/* Friends & Templates Lists */
+.friend-list, .template-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -1058,13 +1068,43 @@ textarea { resize: vertical; min-height: 64px; }
 }
 .friend-item:hover {
   transform: translateX(2px);
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--shadow-1);
 }
-.friend-presence { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.friend-presence { width: 8px; height: 8px; min-width: 8px; border-radius: 50%; background: var(--line); }
 .friend-presence.online { background: var(--ok); }
 .friend-presence.offline { background: var(--ink-soft); }
-.friend-name { font-weight: 600; }
-.friend-actions { display: flex; gap: 6px; }
+.friend-name { font-weight: 600; flex: 1; color: var(--ink); font-size: 14px; }
+.friend-actions { display: flex; gap: 6px; align-items: center; }
+
+.template-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) ease;
+}
+.template-item:hover {
+  transform: translateX(2px);
+  box-shadow: var(--shadow-1);
+}
+.template-name { font-weight: 600; flex: 1; color: var(--ink); font-size: 14px; }
+.template-actions { display: flex; gap: 6px; align-items: center; }
+
+.empty-item {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #fbfdff;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-align: center;
+}
 
 /* Help requests */
 .help-task-name { font-size: 12px; color: var(--ink-soft); margin: 0; }

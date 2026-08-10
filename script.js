@@ -1783,9 +1783,9 @@
       var list = $('template-list');
       var tpls = TM.Templates.load();
       list.innerHTML = tpls.length ? tpls.map(function (t) {
-        return '<li class="friend-item"><span class="friend-name">' + U.escapeHTML(t.name) + '</span>' +
-          '<span class="friend-actions"><button class="btn btn-ghost btn-sm" data-tmpl-del="' + U.escapeHTML(t.name) + '">Remove</button></span></li>';
-      }).join('') : '<li class="friend-item">No templates yet.</li>';
+        return '<li class="template-item"><span class="template-name">' + U.escapeHTML(t.name) + '</span>' +
+          '<span class="template-actions"><button class="btn btn-ghost btn-sm" data-tmpl-del="' + U.escapeHTML(t.name) + '">Remove</button></span></li>';
+      }).join('') : '<li class="empty-item">No templates yet.</li>';
     }
     function quickAddTemplate(name) {
       var tpls = TM.Templates.load();
@@ -2206,13 +2206,13 @@
             '<span class="friend-actions">' +
             '<button class="btn btn-ghost btn-sm" data-accept="' + r.id + '">Accept</button>' +
             '<button class="btn btn-danger-ghost btn-sm" data-decline="' + r.id + '">Decline</button></span></li>';
-        }).join('') : '<li class="friend-item">No pending requests.</li>';
+        }).join('') : '<li class="empty-item">No pending requests.</li>';
         fList.innerHTML = friends.length ? friends.map(function (r) {
           return '<li class="friend-item" data-fid="' + r.other_id + '">' +
             '<span class="friend-presence offline"></span>' +
             '<span class="friend-name">' + U.escapeHTML(r.other_name || 'Friend') + '</span>' +
             '<span class="friend-actions"><button class="btn btn-danger-ghost btn-sm" data-removefr="' + r.id + '">Remove</button></span></li>';
-        }).join('') : '<li class="friend-item">No friends yet. Send a request by username above.</li>';
+        }).join('') : '<li class="empty-item">No friends yet. Send a request by username above.</li>';
         if (TM.Presence && TM.Presence.update) TM.Presence.update();
       });
     }
@@ -2459,6 +2459,9 @@
       $('template-manage').addEventListener('click', function () {
         renderTemplateManager();
         openModal('template-modal');
+      });
+      $('template-close').addEventListener('click', function () {
+        closeModal('template-modal');
       });
       $('template-form').addEventListener('submit', function (e) {
         e.preventDefault();

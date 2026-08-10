@@ -446,9 +446,14 @@
       <header class="modal-head"><h2 id="friends-modal-title">Friends</h2><button class="icon-btn" id="friends-close" aria-label="Close">&times;</button></header>
       <div class="modal-body">
         <div class="friends-presence-note" id="friends-presence-note" hidden></div>
-        <form id="friend-add-form" class="grid-2">
-          <label class="field"><span class="field-label">Add by username</span><input type="text" id="friend-username" maxlength="32" required /></label>
-          <div class="actions"><button type="submit" class="btn btn-primary btn-sm">Send request</button></div>
+        <form id="friend-add-form" class="friend-add-form">
+          <label class="field">
+            <span class="field-label">Add by username</span>
+            <div class="input-btn-group">
+              <input type="text" id="friend-username" placeholder="Enter username..." maxlength="32" required />
+              <button type="submit" class="btn btn-primary btn-sm">Send request</button>
+            </div>
+          </label>
         </form>
 
         <h3>Pending requests</h3>
