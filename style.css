@@ -393,6 +393,22 @@ textarea { resize: vertical; min-height: 64px; }
 }
 .password-toggle-btn:active { transform: scale(0.88); }
 
+/* Auth field leading icons (envelope / lock) */
+.field-input { position: relative; width: 100%; }
+#view-auth .field-input input { padding-left: 40px; }
+.field-input .fi-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  opacity: 0.85;
+  pointer-events: none;
+  transition: color var(--t-mid) var(--ease-out), opacity var(--t-mid) ease;
+}
+.field-input:focus-within .fi-icon { color: var(--blue-700); opacity: 1; }
+.password-input-wrap .field-input { flex: 1; min-width: 0; }
+
 /* Auth submit buttons + loading spinner */
 #view-auth .btn {
   border-radius: 11px;
