@@ -34,9 +34,6 @@
 
   <!-- ============= AUTH VIEW ============= -->
   <main id="view-auth" class="auth-shell">
-    <div class="orb orb-a" aria-hidden="true"></div>
-    <div class="orb orb-b" aria-hidden="true"></div>
-    <div class="orb orb-c" aria-hidden="true"></div>
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo" aria-hidden="true">
@@ -142,13 +139,6 @@
   <div id="view-app" class="app-shell" hidden>
     <header class="topbar">
       <div class="topbar-left">
-        <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
         <div class="brand-wrap">
           <div class="brand-icon">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -165,7 +155,7 @@
 
       <div class="topbar-center">
         <div class="search-wrap">
-          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="search" id="search-input" placeholder="Search tasks, subjects, or notes…" aria-label="Search tasks" />
         </div>
         <nav class="view-switcher" id="view-switcher" role="tablist" aria-label="View mode">
@@ -177,137 +167,134 @@
       </div>
 
       <div class="topbar-right">
-        <!-- Connectivity Indicator inside topbar -->
         <div id="conn-indicator" class="conn-indicator" role="status" aria-live="polite">
           <span class="conn-dot" id="conn-dot"></span>
           <span id="conn-text">Online</span>
         </div>
+        <button class="btn btn-primary btn-sm" id="quick-add-btn" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>New task</span>
+        </button>
         <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
           <span id="notify-badge" class="badge" hidden>0</span>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
         </button>
         <button class="icon-btn" id="friends-btn" aria-label="Friends" title="Friends">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="9" cy="7" r="4"></circle>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
         </button>
-        <button class="btn btn-ghost btn-logout" id="logout-btn" type="button">Log out</button>
+        <button class="btn btn-ghost btn-sm btn-logout" id="logout-btn" type="button">Log out</button>
       </div>
     </header>
 
-    <aside class="sidenav" id="sidenav" aria-label="Side navigation">
-      <div class="sidenav-cta">
-        <button class="btn btn-primary btn-block btn-new-task" id="quick-add-btn" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>New Task</span>
-        </button>
-      </div>
-
-      <div class="filters">
-        <div class="sidenav-section-head">
-          <h3>Filters & Sort</h3>
-        </div>
-        <label class="field">
-          <span class="field-label-sm">Sort order</span>
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-toggle" id="filter-toggle" type="button" aria-expanded="true">
+        <svg class="filter-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span>Filters</span>
+      </button>
+      <div class="filter-body" id="filter-body">
+        <label class="filter-field">
+          <span>Sort</span>
           <select id="sort-mode">
-            <option value="dueAsc">Due date (earliest)</option>
-            <option value="dueDesc">Due date (latest)</option>
-            <option value="priorityDesc">Priority (high → low)</option>
-            <option value="priorityAsc">Priority (low → high)</option>
-            <option value="titleAsc">Title (A → Z)</option>
+            <option value="dueAsc">Due earliest</option>
+            <option value="dueDesc">Due latest</option>
+            <option value="priorityDesc">Priority high to low</option>
+            <option value="priorityAsc">Priority low to high</option>
+            <option value="titleAsc">Title A to Z</option>
             <option value="createdDesc">Recently added</option>
           </select>
         </label>
-        <label class="field">
-          <span class="field-label-sm">Subject</span>
+        <label class="filter-field">
+          <span>Subject</span>
           <select id="filter-subject">
-            <option value="">All Subjects</option>
+            <option value="">All subjects</option>
           </select>
         </label>
-        <label class="field">
-          <span class="field-label-sm">Priority</span>
+        <label class="filter-field">
+          <span>Priority</span>
           <select id="filter-priority">
-            <option value="">All Priorities</option>
+            <option value="">All priorities</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
         </label>
-        <label class="field">
-          <span class="field-label-sm">Status</span>
+        <label class="filter-field">
+          <span>Status</span>
           <select id="filter-status">
-            <option value="">All Statuses</option>
+            <option value="">All statuses</option>
             <option value="active">Active</option>
             <option value="completed">Completed</option>
-            <option value="overdue">Overdue</option>
+            <option value="overdue">Past due</option>
           </select>
         </label>
+        <span class="filter-spacer" aria-hidden="true"></span>
+        <button class="btn btn-ghost btn-sm" id="data-btn" type="button">Data &amp; account</button>
       </div>
-
-      <div class="sidenav-foot">
-        <div class="sidenav-section-head">
-          <h3>Data & Account</h3>
-        </div>
-        <div class="foot-btn-group">
-          <button class="btn btn-ghost btn-sm" id="export-csv-btn"  type="button">Export CSV</button>
-          <button class="btn btn-ghost btn-sm" id="export-json-btn" type="button">Export JSON</button>
-          <button class="btn btn-ghost btn-sm" id="backup-btn"       type="button">Encrypted Backup</button>
-          <button class="btn btn-danger-ghost btn-sm" id="delete-account-btn" type="button">Delete Account</button>
-        </div>
-      </div>
-    </aside>
+    </div>
 
     <section class="dashboard-bar" id="dashboard-bar" aria-label="Summary">
-      <div class="kpi-card" data-kpi-filter="all">
-        <div class="kpi-head">
-          <span class="kpi-label">Completion</span>
-          <span class="kpi-badge kpi-badge-ok">Progress</span>
-        </div>
-        <div class="kpi-val" id="m-completion">0%</div>
-        <div class="kpi-progress-track">
-          <div class="kpi-progress-bar" id="m-completion-bar" style="width: 0%;"></div>
-        </div>
+      <div class="kpi-empty-banner" id="kpi-empty-banner" hidden>
+        <p class="kpi-empty-title">You&rsquo;re all caught up</p>
+        <p class="kpi-empty-sub">Nothing on your plate right now &mdash; the space is yours.</p>
       </div>
 
-      <div class="kpi-card" data-kpi-filter="upcoming">
-        <div class="kpi-head">
-          <span class="kpi-label">Due &le; 7 Days</span>
-          <span class="kpi-badge kpi-badge-warn">Upcoming</span>
-        </div>
-        <div class="kpi-val" id="m-upcoming">0</div>
-        <span class="kpi-sub">Deadlines near</span>
-      </div>
+      <button class="kpi-card" data-kpi-filter="completion" type="button">
+        <span class="kpi-head">
+          <span class="kpi-dot dot-sage" aria-hidden="true"></span>
+          <span class="kpi-label">Completion rate</span>
+        </span>
+        <span class="kpi-val" id="m-completion">0%</span>
+        <span class="kpi-progress-track"><span class="kpi-progress-bar" id="m-completion-bar" style="width: 0%;"></span></span>
+      </button>
 
-      <div class="kpi-card" data-kpi-filter="overdue">
-        <div class="kpi-head">
-          <span class="kpi-label">Overdue</span>
-          <span class="kpi-badge kpi-badge-danger">Action Required</span>
-        </div>
-        <div class="kpi-val kpi-val-danger" id="m-overdue">0</div>
-        <span class="kpi-sub">Needs attention</span>
-      </div>
+      <button class="kpi-card" data-kpi-filter="upcoming" type="button">
+        <span class="kpi-head">
+          <span class="kpi-dot dot-sand" aria-hidden="true"></span>
+          <span class="kpi-label">Coming up (7 days)</span>
+        </span>
+        <span class="kpi-val" id="m-upcoming">0</span>
+        <span class="kpi-sub">Worth a glance</span>
+      </button>
 
-      <div class="kpi-card" data-kpi-filter="active">
-        <div class="kpi-head">
-          <span class="kpi-label">Total Active</span>
-          <span class="kpi-badge kpi-badge-info">In Progress</span>
-        </div>
-        <div class="kpi-val" id="m-total">0</div>
-        <span class="kpi-sub">Active tasks</span>
-      </div>
+      <button class="kpi-card" data-kpi-filter="overdue" type="button">
+        <span class="kpi-head">
+          <span class="kpi-dot dot-rose" aria-hidden="true"></span>
+          <span class="kpi-label">Past due</span>
+        </span>
+        <span class="kpi-val" id="m-overdue">0</span>
+        <span class="kpi-sub">Waiting for you</span>
+      </button>
+
+      <button class="kpi-card" data-kpi-filter="active" type="button">
+        <span class="kpi-head">
+          <span class="kpi-dot dot-ink" aria-hidden="true"></span>
+          <span class="kpi-label">Active</span>
+        </span>
+        <span class="kpi-val" id="m-total">0</span>
+        <span class="kpi-sub">In motion</span>
+      </button>
     </section>
 
     <section class="view-body" id="view-body">
       <!-- LIST VIEW -->
       <div id="pane-list" class="pane is-active" role="tabpanel" aria-label="List view">
         <ul id="task-list" class="task-list" aria-live="polite"></ul>
-        <p id="list-empty" class="empty" hidden>No tasks yet. Click <strong>+ New task</strong> or pick a quick-add template.</p>
+        <div id="list-empty" class="empty-state" hidden>
+          <p class="empty-title">No tasks yet</p>
+          <p class="empty-sub">Add your first one, or start from a suggestion below.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary btn-sm" id="empty-new-btn" type="button">New task</button>
+            <div class="empty-tpl-links"></div>
+          </div>
+        </div>
       </div>
 
       <!-- GROUP VIEW -->
@@ -349,11 +336,11 @@
       <div id="pane-dashboard" class="pane" role="tabpanel" aria-label="Dashboard view" hidden>
         <div class="dash-grid">
           <div class="dash-card"><h3>Completion rate</h3><div class="donut" id="donut-completion"><span id="donut-num">0%</span></div></div>
-          <div class="dash-card"><h3>Upcoming (7 days)</h3><div class="dash-big" id="dash-upcoming">0</div></div>
-          <div class="dash-card"><h3>Overdue</h3><div class="dash-big dash-warn" id="dash-overdue">0</div></div>
+          <div class="dash-card"><h3>Coming up (7 days)</h3><div class="dash-big" id="dash-upcoming">0</div></div>
+          <div class="dash-card"><h3>Past due</h3><div class="dash-big" id="dash-overdue">0</div></div>
           <div class="dash-card"><h3>By subject</h3><ul id="dash-subjects" class="dash-list"></ul></div>
           <div class="dash-card"><h3>By priority</h3><ul id="dash-priority" class="dash-list"></ul></div>
-          <div class="dash-card"><h3>By day (next 14)</h3><ul id="dash-day"     class="dash-list"></ul></div>
+          <div class="dash-card"><h3>Next 14 days</h3><ul id="dash-day"     class="dash-list"></ul></div>
         </div>
       </div>
     </section>
@@ -525,6 +512,26 @@
       <div class="modal-body">
         <label class="field field-inline"><input type="checkbox" id="notify-browser-toggle" /> Enable browser notifications</label>
         <ul id="notify-list" class="notify-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= DATA & ACCOUNT MODAL ============= -->
+  <div class="modal" id="data-modal" role="dialog" aria-modal="true" aria-labelledby="data-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head"><h2 id="data-modal-title">Data &amp; account</h2><button class="icon-btn" id="data-close" aria-label="Close">&times;</button></header>
+      <div class="modal-body data-modal-body">
+        <h3>Your data</h3>
+        <div class="foot-btn-group">
+          <button class="btn btn-ghost btn-sm" id="export-csv-btn"  type="button">Export CSV</button>
+          <button class="btn btn-ghost btn-sm" id="export-json-btn" type="button">Export JSON</button>
+          <button class="btn btn-ghost btn-sm" id="backup-btn"       type="button">Encrypted backup</button>
+        </div>
+        <p class="data-note">Exports are generated from what is saved on this device and synced to your account.</p>
+        <hr class="data-rule" />
+        <h3>Account</h3>
+        <button class="btn-link-danger" id="delete-account-btn" type="button">Delete account</button>
+        <p class="data-note">Removes your tasks, attachments, friends, and help history. You will be asked to confirm.</p>
       </div>
     </div>
   </div>

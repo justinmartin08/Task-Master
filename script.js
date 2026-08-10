@@ -938,38 +938,55 @@
     }
     function pill(t) {
       var p = [];
-      if (t.subject) p.push('<span class="pill subject">' + U.escapeHTML(t.subject) + '</span>');
+      if (t.subject) p.push('<span class="m-subject">' + U.escapeHTML(t.subject) + '</span>');
       if (t.due) {
-        var dueCls = t.completed ? 'completed' : overdueOf(t) ? 'overdue' : dueSoonOf(t) ? 'due-soon' : 'due';
-        var dueLbl = t.completed ? 'Completed ' : overdueOf(t) ? 'Overdue ' : dueSoonOf(t) ? 'Due ' : 'Due ';
-        p.push('<span class="pill ' + dueCls + '">' + dueLbl + U.fmtDate(t.due) + '</span>');
+        var dueCls = t.completed ? 'm-done' : overdueOf(t) ? 'm-past' : dueSoonOf(t) ? 'm-soon' : '';
+        var dueLbl = t.completed ? 'Done ' : overdueOf(t) ? 'Past due ' : 'Due ';
+        p.push('<span class="' + dueCls + '">' + dueLbl + U.fmtDate(t.due) + '</span>');
       }
-      if (t.attachments && t.attachments.length) {
-        var paperclipSvg = '<svg class="pill-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>';
-        p.push('<span class="pill">' + paperclipSvg + ' ' + t.attachments.length + '</span>');
-      }
+      var n = (t.attachments && t.attachments.length) || 0;
+      if (n) p.push('<span>' + n + ' attachment' + (n > 1 ? 's' : '') + '</span>');
       if (t.seriesId) {
-        var repeatSvg = '<svg class="pill-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
-        p.push('<span class="pill recurrence">' + repeatSvg + ' recurring</span>');
+        var meta = TM.Tasks.loadSeries()[t.seriesId];
+        var rule = (meta && TM.Recurse && TM.Recurse.fmtRule) ? TM.Recurse.fmtRule(meta) : '';
+        if (rule) p.push('<span>Repeats ' + U.escapeHTML(rule) + '</span>');
       }
-      return p.join('');
+      return p.join('<span class="m-sep" aria-hidden="true">\u00b7</span>');
     }
     function taskItemHTML(t) {
       var drag = '';
       if (t.completed && t.completedAt) {
         var left = t.completedAt + TM.Config.PURGE_MS - Date.now();
-        if (left > 0) drag = '<span class="task-purge-countdown">auto-deletes in ' + U.fmtDuration(left) + '</span>';
+        if (left > 0) drag = '<span class="task-purge-countdown">Clears in ' + U.fmtDuration(left) + '</span>';
       }
-      var editSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
-      var helpSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
-      var deleteSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+      var dotCls = t.completed ? ' dot-done' : overdueOf(t) ? ' dot-past' : dueSoonOf(t) ? ' dot-soon' : '';
+      var editSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+      var helpSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+      var deleteSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+      var detailRows = '';
+      if (t.priority !== 'medium' || t.seriesId || (t.attachments && t.attachments.length)) {
+        var prLabel = { high: 'High', medium: 'Medium', low: 'Low' }[t.priority] || 'Medium';
+        detailRows += '<div class="task-dl-row"><span class="task-dl">Priority</span><span class="task-dv">' + prLabel + '</span></div>';
+        if (t.seriesId) {
+          var meta = TM.Tasks.loadSeries()[t.seriesId];
+          var rule = (meta && TM.Recurse && TM.Recurse.fmtRule) ? TM.Recurse.fmtRule(meta) : '';
+          detailRows += '<div class="task-dl-row"><span class="task-dl">Repeats</span><span class="task-dv">' + U.escapeHTML(rule || '') + '</span></div>';
+        }
+        if (t.attachments && t.attachments.length) {
+          var names = t.attachments.map(function (a) { return U.escapeHTML(a.name || a.url || a.text || ''); }).join(', ');
+          detailRows += '<div class="task-dl-row"><span class="task-dl">Attachments</span><span class="task-dv">' + names + '</span></div>';
+        }
+      }
+      var detailsBlock = detailRows ? '<div class="task-details">' + detailRows + '</div>' : '';
 
       return '<li class="' + classesFor(t) + '" data-id="' + t.id + '">' +
+        '<span class="task-status-dot' + dotCls + '" aria-hidden="true"></span>' +
         '<input type="checkbox" class="task-check" data-action="toggle" ' + (t.completed ? 'checked' : '') + ' aria-label="Mark complete" />' +
         '<div class="task-main">' +
           '<span class="task-title">' + U.escapeHTML(t.title) + '</span>' +
           '<span class="task-meta">' + pill(t) + '</span>' +
           (drag ? drag : '') +
+          detailsBlock +
         '</div>' +
         '<span class="task-actions">' +
           '<button class="icon-btn btn-sm" data-action="edit" title="Edit" aria-label="Edit">' + editSvg + '</button>' +
@@ -981,8 +998,36 @@
       var listEl = document.getElementById('task-list');
       var empty = document.getElementById('list-empty');
       var tasks = applyFilters(sorted());
-      if (!tasks.length) { listEl.innerHTML = ''; empty.hidden = false; }
-      else { empty.hidden = true; listEl.innerHTML = tasks.map(taskItemHTML).join(''); }
+      if (!tasks.length) {
+        listEl.innerHTML = '';
+        empty.hidden = false;
+        var all = TM.Tasks.loadTasks();
+        var title = empty.querySelector('.empty-title');
+        var sub = empty.querySelector('.empty-sub');
+        var tplWrap = empty.querySelector('.empty-tpl-links');
+        var newBtn = empty.querySelector('.empty-new-btn');
+        if (newBtn) newBtn.hidden = false;
+        if (!all.length) {
+          title.textContent = 'No tasks yet';
+          sub.textContent = 'Add your first one, or start from a suggestion below.';
+          var tpls = TM.Templates.load().slice(0, 3);
+          tplWrap.innerHTML = tpls.map(function (t) {
+            return '<button type="button" class="empty-tpl" data-tpl="' + U.escapeHTML(t.name) + '">' + U.escapeHTML(t.name) + '</button>';
+          }).join('');
+          tplWrap.hidden = !tpls.length;
+        } else if (all.every(function (t) { return t.completed; })) {
+          title.textContent = 'You\u2019re all caught up';
+          sub.textContent = 'Nothing left on your plate right now.';
+          tplWrap.hidden = true;
+        } else {
+          title.textContent = 'No tasks match';
+          sub.textContent = 'Try easing a filter or two \u2014 everything will still be here.';
+          tplWrap.hidden = true;
+        }
+      } else {
+        empty.hidden = true;
+        listEl.innerHTML = tasks.map(taskItemHTML).join('');
+      }
     }
     function groupKey(t, mode) {
       var today = U.todayISO();
@@ -991,16 +1036,16 @@
         case 'priority': return { high: 'High', medium: 'Medium', low: 'Low' }[t.priority] || 'Medium';
         case 'due':
           if (!t.due) return 'No due date';
-          if (overdueOf(t)) return 'Overdue';
+          if (overdueOf(t)) return 'Past due';
           if (t.due === today) return 'Today';
           if (t.due < U.addDaysISO(today, 7)) return 'This week';
           if (t.due < U.addDaysISO(today, 30)) return 'This month';
           return 'Later';
-        case 'status': return t.completed ? 'Completed' : (overdueOf(t) ? 'Overdue' : 'Active');
+        case 'status': return t.completed ? 'Completed' : (overdueOf(t) ? 'Past due' : 'Active');
       }
       return 'Other';
     }
-    var GROUP_ORDER = { High: 0, Medium: 1, Low: 2, Overdue: 0, Today: 1, 'This week': 2, 'This month': 3, Later: 4, Active: 0, Completed: 1, Other: 6 };
+    var GROUP_ORDER = { High: 0, Medium: 1, Low: 2, 'Past due': 0, Today: 1, 'This week': 2, 'This month': 3, Later: 4, Active: 0, Completed: 1, Other: 6 };
     function renderGroup() {
       var container = document.getElementById('group-container');
       var mode = document.getElementById('group-mode').value;
@@ -1034,6 +1079,17 @@
     }
     function renderDashboardBar() {
       var m = metrics();
+      var tasks = TM.Tasks.loadTasks();
+      var quiet = tasks.length === 0;
+      var banner = document.getElementById('kpi-empty-banner');
+      if (banner) {
+        banner.hidden = !quiet;
+        if (quiet) {
+          banner.querySelector('.kpi-empty-title').textContent = 'You\u2019re all caught up';
+          banner.querySelector('.kpi-empty-sub').textContent = 'Nothing on your plate right now \u2014 the space is yours.';
+        }
+      }
+      document.querySelectorAll('#dashboard-bar .kpi-card').forEach(function (c) { c.hidden = quiet; });
       var compEl = document.getElementById('m-completion');
       if (compEl) compEl.textContent = m.pct + '%';
       var barEl = document.getElementById('m-completion-bar');
@@ -1765,7 +1821,7 @@
     function openModal(id) { var m = $(id); if (m) m.hidden = false; }
     function closeModal(id) { var m = $(id); if (m) m.hidden = true; }
     function closeAllModals() {
-      ['task-modal', 'template-modal', 'friends-modal', 'help-modal', 'notify-modal', 'delete-modal']
+      ['task-modal', 'template-modal', 'friends-modal', 'help-modal', 'notify-modal', 'delete-modal', 'data-modal']
         .forEach(function (id) { closeModal(id); });
     }
 
@@ -1777,6 +1833,20 @@
         return '<li class="template-item"><span class="template-name">' + U.escapeHTML(t.name) + '</span>' +
           '<span class="template-actions"><button class="btn btn-ghost btn-sm" data-tmpl-del="' + U.escapeHTML(t.name) + '">Remove</button></span></li>';
       }).join('') : '<li class="empty-item">No templates yet.</li>';
+    }
+    function quickAddTemplate(name) {
+      var tpls = TM.Templates.load();
+      var t = null;
+      tpls.forEach(function (x) { if (x.name === name) t = x; });
+      if (!t) return;
+      var due = TM.Templates.resolveDue(t.freq);
+      if (t.freq && t.freq !== 'none') {
+        TM.Tasks.createSeries({ title: t.name, subject: t.subject, priority: t.priority, freq: t.freq, count: 10, start: due || U.todayISO() });
+        toast('"' + t.name + '" schedule added.', 'ok');
+      } else {
+        TM.Tasks.upsert({ title: t.name, subject: t.subject, priority: t.priority, due: due });
+        toast('"' + t.name + '" added.', 'ok');
+      }
     }
     /* ---------- task modal ---------- */
     function openNewTask() {
@@ -2426,16 +2496,18 @@
         });
       });
 
-      // ---- mobile nav ----
-      $('nav-toggle').addEventListener('click', function () {
-        $('sidenav').classList.toggle('open');
+      // ---- filters & data ----
+      $('filter-toggle').addEventListener('click', function () {
+        var bar = $('filter-bar');
+        var collapsed = bar.classList.toggle('collapsed');
+        $('filter-toggle').setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       });
-      document.addEventListener('click', function (e) {
-        if (e.target.id === 'sidenav-backdrop' || (e.target.closest && e.target.closest('.sidenav-backdrop'))) {
-          $('sidenav').classList.remove('open');
-          var bd = document.querySelector('.sidenav-backdrop');
-          if (bd) bd.remove();
-        }
+      $('data-btn').addEventListener('click', function () { openModal('data-modal'); });
+      $('data-close').addEventListener('click', function () { closeModal('data-modal'); });
+      $('empty-new-btn').addEventListener('click', openNewTask);
+      $('list-empty').addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-tpl]') : null;
+        if (b) quickAddTemplate(b.getAttribute('data-tpl'));
       });
 
       // ---- new task & template manager modal ----
@@ -2486,7 +2558,14 @@
       ['task-list'].forEach(function (listId) {
         document.getElementById(listId).addEventListener('click', function (e) {
           var btn = e.target.closest ? e.target.closest('[data-action]') : null;
-          if (!btn) return;
+          if (!btn) {
+            var main = e.target.closest ? e.target.closest('.task-main') : null;
+            if (main) {
+              var c = main.closest('.task');
+              if (c && c.classList) c.classList.toggle('task-expanded');
+            }
+            return;
+          }
           var li = btn.closest('.task');
           if (!li) return;
           var id = li.getAttribute('data-id');
@@ -2513,7 +2592,14 @@
       });
       document.getElementById('group-container').addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('[data-action]') : null;
-        if (!btn) return;
+        if (!btn) {
+          var gm = e.target.closest ? e.target.closest('.task-main') : null;
+          if (gm) {
+            var gc = gm.closest('.task');
+            if (gc && gc.classList) gc.classList.toggle('task-expanded');
+          }
+          return;
+        }
         var li = btn.closest('.task');
         if (!li) return;
         var id = li.getAttribute('data-id');
@@ -2533,7 +2619,7 @@
       });
       function toggleTask(id, completed) {
         TM.Tasks.setCompleted(id, completed);
-        toast(completed ? 'Completed \u2014 auto-deletes in 7 days (re-open resets the timer).' : 'Reopened.', completed ? 'ok' : 'info');
+        toast(completed ? 'Done \u2014 it will clear in 7 days if left completed.' : 'Reopened.', completed ? 'ok' : 'info');
       }
 
       // ---- group view select ----
