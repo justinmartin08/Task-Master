@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your Email — Task Master</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    table { border-spacing: 0; }
+    td { padding: 0; }
+    img { border: 0; }
+    .wrapper {
+      width: 100%;
+      table-layout: fixed;
+      background-color: #f4f7fc;
+      padding-bottom: 40px;
+    }
+    .main-table {
+      background-color: #ffffff;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 560px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(15, 42, 95, 0.08);
+      border: 1px solid #e2e8f0;
+    }
+    .header-bar {
+      background: linear-gradient(135deg, #0f2a5f 0%, #1e63d6 100%);
+      padding: 36px 32px;
+      text-align: center;
+    }
+    .logo-badge {
+      display: inline-block;
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      line-height: 48px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .brand-name {
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin: 0;
+    }
+    .content-body {
+      padding: 40px 32px 32px;
+    }
+    .greeting {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+    .message-text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #475569;
+      margin-top: 0;
+      margin-bottom: 28px;
+    }
+    .cta-container {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .btn-confirm {
+      display: inline-block;
+      background: linear-gradient(135deg, #1e63d6 0%, #1a55bf 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 14px 32px;
+      border-radius: 10px;
+      box-shadow: 0 4px 14px rgba(30, 99, 214, 0.35);
+    }
+    .divider {
+      border-top: 1px solid #f1f5f9;
+      margin: 28px 0;
+    }
+    .subtext {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #94a3b8;
+      word-break: break-all;
+    }
+    .footer-bar {
+      background-color: #f8fafc;
+      padding: 24px 32px;
+      text-align: center;
+      border-top: 1px solid #f1f5f9;
+    }
+    .footer-text {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- 
+    ===================================================================
+    TASK MASTER — SUPABASE EMAIL CONFIRMATION TEMPLATE
+    ===================================================================
+    HOW TO USE IN SUPABASE DASHBOARD:
+    1. Log into your Supabase Dashboard (https://supabase.com/dashboard).
+    2. Go to: Authentication -> Email Templates -> Confirm signup.
+    3. Replace the default body HTML with the complete code below.
+    4. Save changes!
+    ===================================================================
+  -->
+  <center class="wrapper">
+    <table class="main-table" width="100%" cellpadding="0" cellspacing="0">
+      <!-- HEADER -->
+      <tr>
+        <td class="header-bar">
+          <div class="logo-badge">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+          <h1 class="brand-name">Task Master</h1>
+        </td>
+      </tr>
+
+      <!-- BODY CONTENT -->
+      <tr>
+        <td class="content-body">
+          <h2 class="greeting">Welcome to Task Master! 🚀</h2>
+          <p class="message-text">
+            Thank you for registering. You are just one click away from organizing your schoolwork, tracking deadlines, and boosting your productivity. Click the button below to confirm your email address and finish signing up:
+          </p>
+
+          <div class="cta-container">
+            <a href="{{ .ConfirmationURL }}" target="_blank" class="btn-confirm">
+              Confirm Email Address &rarr;
+            </a>
+          </div>
+
+          <p class="message-text" style="font-size: 13px; color: #64748b; margin-bottom: 0;">
+            This link will expire in 24 hours. If you didn't create an account with Task Master, you can safely ignore this email.
+          </p>
+
+          <div class="divider"></div>
+
+          <p class="subtext">
+            Having trouble clicking the button? Copy and paste this link into your browser:<br>
+            <a href="{{ .ConfirmationURL }}" style="color: #1e63d6; text-decoration: underline;">{{ .ConfirmationURL }}</a>
+          </p>
+        </td>
+      </tr>
+
+      <!-- FOOTER -->
+      <tr>
+        <td class="footer-bar">
+          <p class="footer-text">
+            &copy; Task Master — Academic Task & Schoolwork Tracker.<br>
+            Encrypted on your device &bull; Private &bull; Reliable
+          </p>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

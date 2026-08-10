@@ -880,19 +880,26 @@
 
     function filters() {
       return {
-        subject: document.getElementById('filter-subject').value,
-        priority: document.getElementById('filter-priority').value,
-        status: document.getElementById('filter-status').value
+        subject: document.getElementById('filter-subject') ? document.getElementById('filter-subject').value : '',
+        priority: document.getElementById('filter-priority') ? document.getElementById('filter-priority').value : '',
+        status: document.getElementById('filter-status') ? document.getElementById('filter-status').value : ''
       };
     }
     function applyFilters(list) {
       var f = filters();
+      var searchEl = document.getElementById('search-input');
+      var q = (searchEl ? searchEl.value : '').trim().toLowerCase();
       return list.filter(function (t) {
         if (f.subject && t.subject !== f.subject) return false;
         if (f.priority && t.priority !== f.priority) return false;
         if (f.status === 'active' && t.completed) return false;
         if (f.status === 'completed' && !t.completed) return false;
         if (f.status === 'overdue' && !(!t.completed && t.due && t.due < U.todayISO())) return false;
+        if (q) {
+          var titleMatch = t.title && t.title.toLowerCase().indexOf(q) !== -1;
+          var subjMatch = t.subject && t.subject.toLowerCase().indexOf(q) !== -1;
+          if (!titleMatch && !subjMatch) return false;
+        }
         return true;
       });
     }
@@ -1017,28 +1024,44 @@
     }
     function renderDashboardBar() {
       var m = metrics();
-      document.getElementById('m-completion').textContent = m.pct + '%';
-      document.getElementById('m-upcoming').textContent = m.upcoming;
+      var compEl = document.getElementById('m-completion');
+      if (compEl) compEl.textContent = m.pct + '%';
+      var barEl = document.getElementById('m-completion-bar');
+      if (barEl) barEl.style.width = m.pct + '%';
+      var upEl = document.getElementById('m-upcoming');
+      if (upEl) upEl.textContent = m.upcoming;
       var od = document.getElementById('m-overdue');
-      od.textContent = m.overdue;
-      od.className = 'metric-num' + (m.overdue ? ' over' : '');
-      document.getElementById('m-total').textContent = m.total;
+      if (od) {
+        od.textContent = m.overdue;
+        od.className = 'kpi-val' + (m.overdue ? ' kpi-val-danger' : '');
+      }
+      var totEl = document.getElementById('m-total');
+      if (totEl) totEl.textContent = m.total;
       var donut = document.getElementById('donut-completion');
       if (donut) donut.style.setProperty('--pct', m.pct);
-      document.getElementById('donut-num').textContent = m.pct + '%';
-      document.getElementById('dash-upcoming').textContent = m.upcoming;
-      document.getElementById('dash-overdue').textContent = m.overdue;
+      var donutNum = document.getElementById('donut-num');
+      if (donutNum) donutNum.textContent = m.pct + '%';
+      var dashUp = document.getElementById('dash-upcoming');
+      if (dashUp) dashUp.textContent = m.upcoming;
+      var dashOd = document.getElementById('dash-overdue');
+      if (dashOd) dashOd.textContent = m.overdue;
       var tasks = TM.Tasks.loadTasks();
       var bySub = {};
       tasks.forEach(function (t) { var k = t.subject || 'No subject'; bySub[k] = (bySub[k] || 0) + 1; });
-      document.getElementById('dash-subjects').innerHTML = Object.keys(bySub).sort().map(function (k) {
-        return '<li><span>' + U.escapeHTML(k) + '</span><span>' + bySub[k] + '</span></li>';
-      }).join('');
+      var dashSubs = document.getElementById('dash-subjects');
+      if (dashSubs) {
+        dashSubs.innerHTML = Object.keys(bySub).sort().map(function (k) {
+          return '<li><span>' + U.escapeHTML(k) + '</span><span>' + bySub[k] + '</span></li>';
+        }).join('');
+      }
       var byPri = { high: 0, medium: 0, low: 0 };
       tasks.forEach(function (t) { byPri[t.priority || 'medium']++; });
-      document.getElementById('dash-priority').innerHTML = ['high', 'medium', 'low'].map(function (k) {
-        return '<li><span>' + k.charAt(0).toUpperCase() + k.slice(1) + '</span><span>' + byPri[k] + '</span></li>';
-      }).join('');
+      var dashPri = document.getElementById('dash-priority');
+      if (dashPri) {
+        dashPri.innerHTML = ['high', 'medium', 'low'].map(function (k) {
+          return '<li><span>' + k.charAt(0).toUpperCase() + k.slice(1) + '</span><span>' + byPri[k] + '</span></li>';
+        }).join('');
+      }
       var dayList = [];
       var today = U.todayISO();
       for (var i = 0; i < 14; i++) {
@@ -1046,7 +1069,8 @@
         var n = tasks.filter(function (t) { return !t.completed && t.due === iso; }).length;
         if (n) dayList.push('<li><span>' + U.fmtDate(iso) + '</span><span>' + n + '</span></li>');
       }
-      document.getElementById('dash-day').innerHTML = dayList.join('') || '<li><span>Nothing due</span><span>0</span></li>';
+      var dashDay = document.getElementById('dash-day');
+      if (dashDay) dashDay.innerHTML = dayList.join('') || '<li><span>Nothing due</span><span>0</span></li>';
     }
     function populateSubjectFilter() {
       var sel = document.getElementById('filter-subject');
@@ -1526,6 +1550,22 @@
       }
       try { makeClient(); } catch (e) { return Promise.resolve(null); }
       watchAuth();
+
+      // Handle returning confirmation token in hash (#access_token=... or #type=signup)
+      if (window.location.hash && (window.location.hash.indexOf('access_token=') !== -1 || window.location.hash.indexOf('type=signup') !== -1 || window.location.hash.indexOf('error_description=') !== -1)) {
+        var hash = window.location.hash;
+        if (hash.indexOf('error_description=') !== -1) {
+          var errMatch = hash.match(/error_description=([^&]+)/);
+          var errMsg = errMatch ? decodeURIComponent(errMatch[1]).replace(/\+/g, ' ') : 'Email confirmation failed.';
+          setTimeout(function () { if (TM.Notify && TM.Notify.toast) TM.Notify.toast(errMsg, 'danger'); }, 800);
+        } else {
+          setTimeout(function () { if (TM.Notify && TM.Notify.toast) TM.Notify.toast('Email confirmed successfully! Welcome to Task Master.', 'ok'); }, 800);
+        }
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+
       // Supabase v2: getSession() returns a Promise — chain it, don't read it synchronously.
       return resolveSession().then(function (res) {
         var data = (res && res.data) || {};
@@ -1608,9 +1648,13 @@
         userName = username;
         return Promise.resolve({ uid: duid, username: username, demo: true });
       }
+      var redirectUrl = window.location.origin + window.location.pathname;
       return client().auth.signUp({
         email: email, password: password,
-        options: { data: { username: username } }
+        options: {
+          data: { username: username },
+          emailRedirectTo: redirectUrl
+        }
       }).then(function (r) {
         if (r.error) throw friendlyAuthError(r.error);
         var data = r.data || {};
@@ -2346,15 +2390,38 @@
         });
       });
 
-      // ---- views ----
+      // ---- views & search ----
       document.querySelectorAll('.view-tab[data-view]').forEach(function (b) {
         b.addEventListener('click', function () { TM.Views.setView(b.getAttribute('data-view')); });
       });
+      var searchInput = $('search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', TM.Utils.debounce(function () {
+          TM.Views.renderList();
+          TM.Views.renderGroup();
+        }, 150));
+      }
       $('sort-mode').addEventListener('change', TM.Views.refresh);
       $('filter-subject').addEventListener('change', TM.Views.refresh);
       $('filter-priority').addEventListener('change', TM.Views.refresh);
       $('filter-status').addEventListener('change', TM.Views.refresh);
       $('group-mode').addEventListener('change', TM.Views.refresh);
+
+      // ---- KPI card interactive filtering ----
+      document.querySelectorAll('.kpi-card[data-kpi-filter]').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var targetFilter = card.getAttribute('data-kpi-filter');
+          var statusSel = $('filter-status');
+          if (statusSel) {
+            if (targetFilter === 'all') statusSel.value = '';
+            else if (targetFilter === 'upcoming') statusSel.value = 'active';
+            else if (targetFilter === 'overdue') statusSel.value = 'overdue';
+            else if (targetFilter === 'active') statusSel.value = 'active';
+            TM.Views.setView('list');
+            TM.Views.refresh();
+          }
+        });
+      });
 
       // ---- mobile nav ----
       $('nav-toggle').addEventListener('click', function () {
