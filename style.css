@@ -1201,3 +1201,83 @@ textarea { resize: vertical; min-height: 64px; }
   background-clip: content-box;
 }
 .view-body, .modal-body, .sidenav { scrollbar-width: thin; scrollbar-color: var(--blue-100) transparent; }
+
+/* ===== INTRO SPLASH OVERLAY ===== */
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #071536 0%, #0f2a5f 55%, #184196 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out), filter 600ms ease;
+  will-change: opacity, transform, filter;
+}
+.intro-splash.dismissed {
+  opacity: 0;
+  transform: scale(1.06);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.splash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: popIn 500ms var(--ease-spring);
+}
+.splash-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 36px rgba(59, 130, 246, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  animation: logoPulse 2s ease-in-out infinite alternate;
+}
+@keyframes logoPulse {
+  from { transform: scale(1); box-shadow: 0 12px 36px rgba(59, 130, 246, 0.45); }
+  to   { transform: scale(1.06); box-shadow: 0 16px 48px rgba(59, 130, 246, 0.65); }
+}
+.splash-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.splash-loader {
+  width: 140px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 100px;
+  overflow: hidden;
+  position: relative;
+}
+.splash-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 45%;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  border-radius: 100px;
+  animation: splashProgress 1.4s ease-in-out infinite alternate;
+}
+@keyframes splashProgress {
+  from { left: 0%; width: 30%; }
+  to   { left: 65%; width: 35%; }
+}
+
+/* SVG Icon alignment helpers */
+.pill-icon, .attach-kind-icon {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 3px;
+}
+.task-actions .icon-btn svg {
+  display: block;
+}
+

@@ -944,8 +944,14 @@
         var dueLbl = t.completed ? 'Completed ' : overdueOf(t) ? 'Overdue ' : dueSoonOf(t) ? 'Due ' : 'Due ';
         p.push('<span class="pill ' + dueCls + '">' + dueLbl + U.fmtDate(t.due) + '</span>');
       }
-      if (t.attachments && t.attachments.length) p.push('<span class="pill">&#128196; ' + t.attachments.length + '</span>');
-      if (t.seriesId) p.push('<span class="pill recurrence">&#128257; recurring</span>');
+      if (t.attachments && t.attachments.length) {
+        var paperclipSvg = '<svg class="pill-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>';
+        p.push('<span class="pill">' + paperclipSvg + ' ' + t.attachments.length + '</span>');
+      }
+      if (t.seriesId) {
+        var repeatSvg = '<svg class="pill-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
+        p.push('<span class="pill recurrence">' + repeatSvg + ' recurring</span>');
+      }
       return p.join('');
     }
     function taskItemHTML(t) {
@@ -954,6 +960,10 @@
         var left = t.completedAt + TM.Config.PURGE_MS - Date.now();
         if (left > 0) drag = '<span class="task-purge-countdown">auto-deletes in ' + U.fmtDuration(left) + '</span>';
       }
+      var editSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+      var helpSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+      var deleteSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
       return '<li class="' + classesFor(t) + '" data-id="' + t.id + '">' +
         '<input type="checkbox" class="task-check" data-action="toggle" ' + (t.completed ? 'checked' : '') + ' aria-label="Mark complete" />' +
         '<div class="task-main">' +
@@ -962,9 +972,9 @@
           (drag ? drag : '') +
         '</div>' +
         '<span class="task-actions">' +
-          '<button class="icon-btn btn-sm" data-action="edit" title="Edit" aria-label="Edit">&#9998;</button>' +
-          '<button class="icon-btn btn-sm" data-action="help" title="Ask friends for help" aria-label="Ask for help">&#128172;</button>' +
-          '<button class="icon-btn btn-sm" data-action="delete" title="Delete" aria-label="Delete">&#128465;</button>' +
+          '<button class="icon-btn btn-sm" data-action="edit" title="Edit" aria-label="Edit">' + editSvg + '</button>' +
+          '<button class="icon-btn btn-sm" data-action="help" title="Ask friends for help" aria-label="Ask for help">' + helpSvg + '</button>' +
+          '<button class="icon-btn btn-sm" data-action="delete" title="Delete" aria-label="Delete">' + deleteSvg + '</button>' +
         '</span></li>';
     }
     function renderList() {
@@ -1883,8 +1893,13 @@
       if (a.kind === 'file') meta = U.fmtBytes(a.size || 0) + (a.pending ? ' (pending)' : '');
       else if (a.kind === 'link') meta = '<a href="' + U.escapeHTML(a.url || '#') + '" target="_blank" rel="noopener">' + U.escapeHTML(a.url || '') + '</a>';
       else meta = 'note \u00b7 ' + U.escapeHTML(String(a.text || '').slice(0, 120));
+      var fileSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>';
+      var linkSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
+      var noteSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+      var kindIcon = a.kind === 'file' ? fileSvg : (a.kind === 'link' ? linkSvg : noteSvg);
+
       return '<div class="attach-item">' +
-        '<div class="attach-info"><span class="attach-name">' + (a.kind === 'file' ? '\ud83d\udcc4 ' : a.kind === 'link' ? '\ud83d\udd17 ' : '\ud83d\udccd ') + U.escapeHTML(a.name || '') + '</span>' +
+        '<div class="attach-info"><span class="attach-name">' + kindIcon + ' ' + U.escapeHTML(a.name || '') + '</span>' +
         '<span class="attach-sub">' + meta + '</span></div>' +
         '<button type="button" class="btn btn-ghost btn-sm btn-attach-remove" data-kind="' + a.kind + '" data-name="' + U.escapeHTML(a.name || '') + '">Remove</button>' +
         '</div>';
@@ -2647,6 +2662,13 @@
 
   /* ============================= TM.App ============================= */
   TM.App = (function () {
+    function dismissSplash() {
+      var splash = document.getElementById('app-intro-splash');
+      if (splash && !splash.classList.contains('dismissed')) {
+        splash.classList.add('dismissed');
+        setTimeout(function () { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 800);
+      }
+    }
     function showAuth() {
       TM.UI.setAppVisible(false);
       TM.UI.closeAllModals();
@@ -2654,6 +2676,7 @@
       document.getElementById('view-app').hidden = true;
       TM.UI.bootFills();
       document.getElementById('conn-indicator').hidden = true;
+      setTimeout(dismissSplash, 400);
     }
     function enterApp(session) {
       TM.UI.setAppVisible(true);
@@ -2676,6 +2699,7 @@
       TM.UI.setConnState(TM.Sync.online() ? 'online' : 'offline', TM.Sync.online() ? 'Online' : 'Offline');
       TM.Notify.dueReminderCheck();
       startTimers();
+      setTimeout(dismissSplash, 400);
     }
     function startTimers() {
       if (startTimers.__started) return;

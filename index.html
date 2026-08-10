@@ -15,6 +15,21 @@
   <script src="config.js" onerror="window.__TM_NO_CONFIG__ = true;"></script>
 </head>
 <body>
+  <!-- ============= INTRO SPLASH OVERLAY ============= -->
+  <div id="app-intro-splash" class="intro-splash">
+    <div class="splash-card">
+      <div class="splash-logo">
+        <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+      </div>
+      <h2 class="splash-title">Task Master</h2>
+      <div class="splash-loader"><div class="splash-bar"></div></div>
+    </div>
+  </div>
+
   <!-- ============= AUTH VIEW ============= -->
   <main id="view-auth" class="auth-shell">
     <div class="orb orb-a" aria-hidden="true"></div>
@@ -23,8 +38,10 @@
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 6L9 17l-5-5" />
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
         <h1 class="app-title">Task Master</h1>
@@ -100,8 +117,10 @@
         <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
         <div class="brand-wrap">
           <div class="brand-icon">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 6L9 17l-5-5" />
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
             </svg>
           </div>
           <span class="brand">Task Master</span>
@@ -129,9 +148,19 @@
         </div>
         <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
           <span id="notify-badge" class="badge" hidden>0</span>
-          <span aria-hidden="true">&#128276;</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
         </button>
-        <button class="icon-btn" id="friends-btn" aria-label="Friends" title="Friends">&#128101;</button>
+        <button class="icon-btn" id="friends-btn" aria-label="Friends" title="Friends">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </button>
         <button class="btn btn-ghost btn-logout" id="logout-btn" type="button">Log out</button>
       </div>
     </header>
