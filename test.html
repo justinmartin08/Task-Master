@@ -459,6 +459,25 @@
         ok(threwExport, 'export guard throws when data exceeds size limit');
         TM.Config.EXPORT_MAX_BYTES = origMax;
         ok(TM.Export.encryptedBackup(), 'encrypted backup download path succeeds');
+        var jsonSample = JSON.stringify({ app: 'task-master', version: 1, tasks: [{ id: 'imp1', title: 'Imported item', due: '2026-10-10', priority: 'high' }] });
+        var impRes = TM.Export.importJSON(jsonSample);
+        eq(impRes.tasksCount, 1, 'importJSON imports valid task array');
+        truthy(TM.Tasks.find('imp1'), 'imported task is present in task list');
+        var encBackupStr = TM.Crypto.encrypt({ app: 'task-master', kind: 'encrypted-backup', tasks: [{ id: 'rest1', title: 'Restored from enc', priority: 'medium' }] }, 'u1');
+        var restRes = TM.Export.restoreEncryptedBackup(encBackupStr);
+        eq(restRes.tasksCount, 1, 'restoreEncryptedBackup succeeds and replaces tasks');
+        truthy(TM.Tasks.find('rest1'), 'restored task exists in storage');
+
+        // ---------- Theme ----------
+        suite('Theme');
+        freshUser();
+        TM.Theme.setTheme('dark');
+        eq(TM.Theme.currentTheme(), 'dark', 'setTheme saves dark theme preference');
+        eq(document.documentElement.getAttribute('data-theme'), 'dark', 'setTheme applies data-theme=dark attribute');
+        TM.Theme.setTheme('light');
+        eq(document.documentElement.getAttribute('data-theme'), 'light', 'setTheme applies data-theme=light attribute');
+        TM.Theme.setTheme('system');
+        ok(document.documentElement.getAttribute('data-theme') == null, 'system theme clears data-theme attribute');
 
         // ---------- Templates ----------
         suite('Templates');

@@ -641,6 +641,73 @@
         return false;
       }
     }
+    function importJSON(str) {
+      var payload;
+      try { payload = JSON.parse(str); } catch (e) { throw new Error('Invalid JSON file format.'); }
+      if (!payload || !Array.isArray(payload.tasks)) {
+        throw new Error('Unrecognized archive format \u2014 expected a JSON object with tasks.');
+      }
+      var existingTasks = TM.Tasks.loadTasks();
+      var existingIds = {};
+      existingTasks.forEach(function (t) { existingIds[t.id] = true; });
+      var importedTasks = 0;
+      payload.tasks.forEach(function (t) {
+        if (!t || !t.title) return;
+        var norm = TM.Tasks.normalize(t);
+        if (!norm) return;
+        if (existingIds[norm.id]) {
+          norm.id = U.uid('t');
+        }
+        existingTasks.push(norm);
+        TM.Tasks.markDirty(norm.id, true);
+        importedTasks++;
+      });
+      TM.Tasks.saveTasks(existingTasks);
+
+      if (payload.series && typeof payload.series === 'object') {
+        var existingSeries = TM.Tasks.loadSeries();
+        Object.keys(payload.series).forEach(function (sid) {
+          if (!existingSeries[sid]) {
+            existingSeries[sid] = payload.series[sid];
+            TM.Tasks.markDirty(sid, true);
+          }
+        });
+        TM.Tasks.saveSeries(existingSeries);
+      }
+
+      if (Array.isArray(payload.templates)) {
+        var existingTpls = TM.Templates.load();
+        var tplNames = {};
+        existingTpls.forEach(function (x) { tplNames[x.name] = true; });
+        payload.templates.forEach(function (t) {
+          if (t && t.name && !tplNames[t.name]) {
+            existingTpls.push(t);
+            tplNames[t.name] = true;
+          }
+        });
+        TM.Templates.save(existingTpls);
+      }
+
+      if (TM.Views && TM.Views.refresh) TM.Views.refresh();
+      return { tasksCount: importedTasks };
+    }
+
+    function restoreEncryptedBackup(encStr) {
+      var uid = TM.Auth.uid();
+      var data = TM.Crypto.decrypt(encStr, uid);
+      if (!data) {
+        throw new Error('Could not decrypt backup. Make sure you are logged in as the same user account.');
+      }
+      if (!data.tasks || !Array.isArray(data.tasks)) {
+        throw new Error('Corrupted or incompatible backup data.');
+      }
+      TM.Tasks.saveTasks(data.tasks);
+      if (data.series && typeof data.series === 'object') TM.Tasks.saveSeries(data.series);
+      if (Array.isArray(data.templates)) TM.Templates.save(data.templates);
+      if (TM.Views && TM.Views.refresh) TM.Views.refresh();
+      return { tasksCount: data.tasks.length };
+    }
+
     function downloadBlob(blob, name) {
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -649,7 +716,52 @@
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
     }
-    return { exportCSV: exportCSV, exportJSON: exportJSON, encryptedBackup: encryptedBackup, exportableTasks: exportableTasks, guardSize: guardSize, rowsForCSV: rowsForCSV, lastBackupAt: lastBackupAt };
+    return {
+      exportCSV: exportCSV, exportJSON: exportJSON, encryptedBackup: encryptedBackup,
+      importJSON: importJSON, restoreEncryptedBackup: restoreEncryptedBackup,
+      exportableTasks: exportableTasks, guardSize: guardSize, rowsForCSV: rowsForCSV, lastBackupAt: lastBackupAt
+    };
+  })();
+
+  /* ============================= TM.Theme ============================= */
+  TM.Theme = (function () {
+    var THEME_KEY = 'theme_mode';
+    function currentTheme() {
+      var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
+      var t = uid ? TM.Storage.get(uid, THEME_KEY, 'system') : 'system';
+      return t || 'system';
+    }
+    function apply(theme) {
+      theme = theme || currentTheme();
+      if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      document.querySelectorAll('#theme-toggle-group .theme-btn').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-theme') === theme);
+      });
+    }
+    function setTheme(theme) {
+      var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
+      if (uid) TM.Storage.set(uid, THEME_KEY, theme);
+      apply(theme);
+      if (TM.Notify && TM.Notify.toast) {
+        var label = theme === 'system' ? 'Automatic (system preference)' : theme.charAt(0).toUpperCase() + theme.slice(1);
+        TM.Notify.toast('Theme set to ' + label + '.', 'info');
+      }
+    }
+    function init() {
+      apply(currentTheme());
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+          if (currentTheme() === 'system') apply('system');
+        });
+      }
+    }
+    return { currentTheme: currentTheme, setTheme: setTheme, apply: apply, init: init };
   })();
 
   /* ============================= TM.Notify ============================= */
@@ -750,8 +862,9 @@
   TM.Calendar = (function () {
     var U = TM.Utils;
     var monthOffset = 0, weekOffset = 0, mode = 'month';
-    var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    var MONTH_LIMIT = 1, WEEK_LIMIT = 4;
+    var DOW_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var MONTH_LIMIT = 12, WEEK_LIMIT = 52;
+    var activeAgendaIso = null;
 
     function baseMonthDate() {
       var d = new Date();
@@ -769,10 +882,9 @@
       if (!cal) return;
       var base = baseMonthDate();
       var first = firstOfMonth(base);
-      var days = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
       var map = tasksByDue(TM.Tasks.loadTasks());
       var html = [];
-      DOW.forEach(function (x) { html.push('<div class="cal-dow">' + x + '</div>'); });
+      DOW_FULL.forEach(function (x) { html.push('<div class="cal-dow">' + x + '</div>'); });
       var lead = first.getDay();
       var start = new Date(first); start.setDate(start.getDate() - lead);
       var today = U.todayISO();
@@ -781,19 +893,27 @@
         var iso = U.toISO(c);
         var inMonth = c.getMonth() === base.getMonth();
         var cls = 'cal-day' + (inMonth ? '' : ' outside') + (iso === today ? ' today' : '');
-        var cell = '<div class="' + cls + '"><span class="cal-day-num">' + c.getDate() + '</span>';
+        var cell = '<div class="' + cls + '" data-isodate="' + iso + '"><span class="cal-day-num">' + c.getDate() + '</span>';
         if (map[iso]) {
           map[iso].slice(0, 4).forEach(function (t) {
             var extra = t.completed ? ' completed' : (t.due < today ? ' overdue' : '');
             cell += '<div class="cal-task pri-' + (t.priority || 'medium') + extra + '" data-taskid="' + t.id + '">' + U.escapeHTML(t.title) + '</div>';
           });
           if (map[iso].length > 4) cell += '<span class="cal-day-more">+' + (map[iso].length - 4) + ' more</span>';
+          // Mobile colored dots
+          var dotsHtml = '<div class="cal-day-dots">';
+          map[iso].slice(0, 5).forEach(function (t) {
+            var dotCls = t.completed ? 'completed' : (t.priority || 'medium');
+            dotsHtml += '<span class="cal-dot pri-' + dotCls + '"></span>';
+          });
+          dotsHtml += '</div>';
+          cell += dotsHtml;
         }
         cell += '</div>';
         html.push(cell);
       }
       cal.innerHTML = html.join('');
-      bindCalTasks(cal);
+      bindCalEvents(cal);
     }
     function renderWeek() {
       var cal = document.getElementById('cal-week');
@@ -804,31 +924,70 @@
       var map = tasksByDue(TM.Tasks.loadTasks());
       var today = U.todayISO();
       var html = [];
-      DOW.forEach(function (x) { html.push('<div class="cal-dow">' + x + '</div>'); });
+      // Render DOW starting from Monday
+      for (var k = 0; k < 7; k++) {
+        var dayDate = new Date(monday); dayDate.setDate(monday.getDate() + k);
+        html.push('<div class="cal-dow">' + DOW_FULL[dayDate.getDay()] + '</div>');
+      }
       for (var i = 0; i < 7; i++) {
         var c = new Date(monday); c.setDate(monday.getDate() + i);
         var iso = U.toISO(c);
         var cls = 'cal-day' + (iso === today ? ' today' : '');
-        var cell = '<div class="' + cls + '"><span class="cal-day-num">' + c.getDate() + '</span>';
+        var cell = '<div class="' + cls + '" data-isodate="' + iso + '"><span class="cal-day-num">' + c.getDate() + '</span>';
         if (map[iso]) {
           map[iso].forEach(function (t) {
             var extra = t.completed ? ' completed' : (t.due < today ? ' overdue' : '');
             cell += '<div class="cal-task pri-' + (t.priority || 'medium') + extra + '" data-taskid="' + t.id + '">' + U.escapeHTML(t.title) + '</div>';
           });
+          var dotsHtml = '<div class="cal-day-dots">';
+          map[iso].slice(0, 5).forEach(function (t) {
+            var dotCls = t.completed ? 'completed' : (t.priority || 'medium');
+            dotsHtml += '<span class="cal-dot pri-' + dotCls + '"></span>';
+          });
+          dotsHtml += '</div>';
+          cell += dotsHtml;
         }
         cell += '</div>';
         html.push(cell);
       }
       cal.innerHTML = html.join('');
-      bindCalTasks(cal);
+      bindCalEvents(cal);
     }
-    function bindCalTasks(cal) {
+    function bindCalEvents(cal) {
       cal.querySelectorAll('.cal-task').forEach(function (el) {
-        el.addEventListener('click', function () {
+        el.addEventListener('click', function (e) {
+          e.stopPropagation();
           var id = el.getAttribute('data-taskid');
           if (id && TM.UI.openTaskById) TM.UI.openTaskById(id);
         });
       });
+      cal.querySelectorAll('.cal-day').forEach(function (dayEl) {
+        dayEl.addEventListener('click', function () {
+          var iso = dayEl.getAttribute('data-isodate');
+          if (iso) openDayAgenda(iso);
+        });
+      });
+    }
+    function openDayAgenda(iso) {
+      activeAgendaIso = iso;
+      var titleEl = document.getElementById('cal-day-modal-title');
+      var subEl = document.getElementById('cal-day-modal-sub');
+      var listEl = document.getElementById('cal-day-task-list');
+      var emptyEl = document.getElementById('cal-day-empty');
+      if (titleEl) titleEl.textContent = 'Agenda for ' + U.fmtDate(iso);
+      if (subEl) subEl.textContent = iso === U.todayISO() ? 'Today' : (iso < U.todayISO() ? 'Past date' : 'Upcoming');
+      var allTasks = TM.Tasks.loadTasks();
+      var dayTasks = allTasks.filter(function (t) { return t.due === iso; });
+      if (listEl && emptyEl) {
+        if (!dayTasks.length) {
+          listEl.innerHTML = '';
+          emptyEl.hidden = false;
+        } else {
+          emptyEl.hidden = true;
+          listEl.innerHTML = dayTasks.map(TM.Views.taskItemHTML).join('');
+        }
+      }
+      if (TM.UI && TM.UI.openModal) TM.UI.openModal('cal-day-modal');
     }
     function renderHeader() {
       var label = document.getElementById('cal-label');
@@ -856,6 +1015,9 @@
     function render() {
       renderHeader();
       if (mode === 'month') renderMonth(); else renderWeek();
+      if (activeAgendaIso && document.getElementById('cal-day-modal') && !document.getElementById('cal-day-modal').hidden) {
+        openDayAgenda(activeAgendaIso);
+      }
     }
     function move(delta) {
       if (mode === 'month') {
@@ -870,7 +1032,7 @@
       render();
     }
     function goToday() { monthOffset = 0; weekOffset = 0; render(); }
-    return { render: render, setMode: setMode, move: move, goToday: goToday };
+    return { render: render, setMode: setMode, move: move, goToday: goToday, openDayAgenda: openDayAgenda, get activeAgendaIso() { return activeAgendaIso; } };
   })();
 
   /* ============================= TM.Views ============================= */
@@ -973,8 +1135,16 @@
           detailRows += '<div class="task-dl-row"><span class="task-dl">Repeats</span><span class="task-dv">' + U.escapeHTML(rule || '') + '</span></div>';
         }
         if (t.attachments && t.attachments.length) {
-          var names = t.attachments.map(function (a) { return U.escapeHTML(a.name || a.url || a.text || ''); }).join(', ');
-          detailRows += '<div class="task-dl-row"><span class="task-dl">Attachments</span><span class="task-dv">' + names + '</span></div>';
+          var attChips = t.attachments.map(function (a) {
+            if (a.kind === 'file') {
+              return '<button type="button" class="task-attach-chip" data-download-blob="' + U.escapeHTML(a.blobId || '') + '" data-filename="' + U.escapeHTML(a.name || 'file') + '" data-mime="' + U.escapeHTML(a.mime || '') + '" title="Click to download file"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> ' + U.escapeHTML(a.name) + ' (' + U.fmtBytes(a.size || 0) + ')</button>';
+            } else if (a.kind === 'link') {
+              return '<a href="' + U.escapeHTML(a.url) + '" target="_blank" rel="noopener" class="task-attach-chip" onclick="event.stopPropagation()" title="Open link in new tab"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> ' + U.escapeHTML(a.name || a.url) + '</a>';
+            } else {
+              return '<button type="button" class="task-attach-chip" data-view-note="' + U.escapeHTML(a.text || '') + '" title="View note content"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Note: ' + U.escapeHTML((a.text || '').slice(0, 24)) + (a.text && a.text.length > 24 ? '…' : '') + '</button>';
+            }
+          }).join('');
+          detailRows += '<div class="task-dl-row"><span class="task-dl">Attachments</span><div class="task-dv task-attach-chips">' + attChips + '</div></div>';
         }
       }
       var detailsBlock = detailRows ? '<div class="task-details">' + detailRows + '</div>' : '';
@@ -1005,7 +1175,7 @@
         var title = empty.querySelector('.empty-title');
         var sub = empty.querySelector('.empty-sub');
         var tplWrap = empty.querySelector('.empty-tpl-links');
-        var newBtn = empty.querySelector('.empty-new-btn');
+        var newBtn = empty.querySelector('#empty-new-btn, .empty-new-btn');
         if (newBtn) newBtn.hidden = false;
         if (!all.length) {
           title.textContent = 'No tasks yet';
@@ -1036,7 +1206,7 @@
         case 'priority': return { high: 'High', medium: 'Medium', low: 'Low' }[t.priority] || 'Medium';
         case 'due':
           if (!t.due) return 'No due date';
-          if (overdueOf(t)) return 'Past due';
+          if (overdueOf(t)) return 'Overdue';
           if (t.due === today) return 'Today';
           if (t.due < U.addDaysISO(today, 7)) return 'This week';
           if (t.due < U.addDaysISO(today, 30)) return 'This month';
@@ -1045,7 +1215,7 @@
       }
       return 'Other';
     }
-    var GROUP_ORDER = { High: 0, Medium: 1, Low: 2, 'Past due': 0, Today: 1, 'This week': 2, 'This month': 3, Later: 4, Active: 0, Completed: 1, Other: 6 };
+    var GROUP_ORDER = { High: 0, Medium: 1, Low: 2, Overdue: 0, 'Past due': 0, Today: 1, 'This week': 2, 'This month': 3, Later: 4, Active: 1, Completed: 2, Other: 6 };
     function renderGroup() {
       var container = document.getElementById('group-container');
       var mode = document.getElementById('group-mode').value;
@@ -1111,7 +1281,6 @@
       if (dashUp) dashUp.textContent = m.upcoming;
       var dashOd = document.getElementById('dash-overdue');
       if (dashOd) dashOd.textContent = m.overdue;
-      var tasks = TM.Tasks.loadTasks();
       var bySub = {};
       tasks.forEach(function (t) { var k = t.subject || 'No subject'; bySub[k] = (bySub[k] || 0) + 1; });
       var dashSubs = document.getElementById('dash-subjects');
@@ -1165,7 +1334,7 @@
     }
     function setView(v) {
       currentView = v;
-      document.querySelectorAll('.view-tab[data-view]').forEach(function (b) {
+      document.querySelectorAll('.view-tab[data-view], .mobile-nav-tab[data-view]').forEach(function (b) {
         var on = b.getAttribute('data-view') === v;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -1445,10 +1614,6 @@
       });
       ch.on('postgres_changes', { event: '*', schema: 'public', table: 'help_requests', filter: 'sender_id=eq.' + uid }, function (p) {
         if (TM.UI && TM.UI.refreshHelp) TM.UI.refreshHelp(true);
-        var n = p.new || {};
-        if (p.eventType === 'UPDATE' && n.status === 'read' && n.recipient_username_change === undefined) {
-          // handled via refresh; status chip updates inline
-        }
       });
       ch.subscribe();
       return ch;
@@ -1733,10 +1898,6 @@
             saveUsername(username);
             return { uid: userId, username: userName };
           }
-          // No session in the signUp response (email confirmation enabled, or
-          // session creation deferred): try an immediate sign-in. When that is
-          // rejected with "email not confirmed", the caller shows a graceful
-          // confirmation state instead of a dead end.
           return client().auth.signInWithPassword({ email: email, password: password }).then(function (lr) {
             if (lr.error) throw friendlyAuthError(lr.error);
             setUser(lr.data.user);
@@ -1773,8 +1934,6 @@
       return client().auth.signOut().catch(function () {});
     }
     function deleteAccount() {
-      // Profile + relationships removed via delete_own_user RPC (README SQL).
-      // Local data wiped unconditionally; auth user handled by that RPC.
       if (TM.Config.demo) {
         TM.Storage.wipeUser('demo');
         localStorage.removeItem(TM.Config.LS_PREFIX + 'demo.identity');
@@ -1809,7 +1968,7 @@
     var U = TM.Utils;
     var appVisible = false;
     var editingTask = null;
-    var pendingAttachFiles = [];
+    var pendingAttachments = []; // files, links, notes staged for new/editing task
     var backupDownloaded = false;
 
     function toast(text, type) {
@@ -1821,7 +1980,7 @@
     function openModal(id) { var m = $(id); if (m) m.hidden = false; }
     function closeModal(id) { var m = $(id); if (m) m.hidden = true; }
     function closeAllModals() {
-      ['task-modal', 'template-modal', 'friends-modal', 'help-modal', 'notify-modal', 'delete-modal', 'data-modal']
+      ['task-modal', 'template-modal', 'friends-modal', 'help-modal', 'notify-modal', 'delete-modal', 'data-modal', 'cal-day-modal', 'note-modal', 'shortcuts-modal']
         .forEach(function (id) { closeModal(id); });
     }
 
@@ -1848,34 +2007,36 @@
         toast('"' + t.name + '" added.', 'ok');
       }
     }
+
     /* ---------- task modal ---------- */
-    function openNewTask() {
+    function openNewTask(opts) {
+      opts = opts || {};
       editingTask = null;
-      pendingAttachFiles = [];
+      pendingAttachments = [];
       $('task-modal-title').textContent = 'New task';
       $('task-id').value = '';
       $('task-series-id').value = '';
       $('task-instance-id').value = '';
       $('task-title').value = '';
       $('err-title').hidden = true;
-      $('task-due').value = '';
-      $('task-subject').value = '';
-      setPriority('medium');
-      $('recur-freq').value = 'none';
+      $('task-due').value = opts.due || '';
+      $('task-subject').value = opts.subject || '';
+      setPriority(opts.priority || 'medium');
+      $('recur-freq').value = opts.freq || 'none';
       $('recur-count').value = 10;
       updateRecurEnd();
       $('task-edit-scope-row').hidden = true;
       $('task-delete').hidden = true;
       renderAttachList('');
       openModal('task-modal');
-      $('task-title').focus();
+      setTimeout(function () { $('task-title').focus(); }, 100);
     }
     function openEditById(taskId) {
       var f = TM.Tasks.find(taskId);
       if (!f) return;
       var t = f.task;
       editingTask = taskId;
-      pendingAttachFiles = [];
+      pendingAttachments = [];
       $('task-modal-title').textContent = 'Edit task';
       $('task-id').value = t.id;
       $('task-series-id').value = t.seriesId || '';
@@ -1910,6 +2071,7 @@
     }
     function checkScope(v) {
       document.querySelectorAll('input[name="edit-scope"]').forEach(function (r) { r.checked = r.value === v; });
+      if ($('task-edit-scope')) $('task-edit-scope').value = v;
     }
     function currentPriority() {
       var active = document.querySelector('#priority-seg .seg-btn.is-active');
@@ -1926,7 +2088,29 @@
       if (input) input.disabled = !show;
     }
 
-    /* ---------- attachments ---------- */
+    /* ---------- attachments & downloads ---------- */
+    function downloadAttachment(blobId, filename, mime) {
+      if (!blobId) { toast('Attachment data missing.', 'warn'); return; }
+      TM.IDB.getBlob(blobId).then(function (rec) {
+        if (!rec || !rec.blob) { toast('Could not retrieve attachment from storage.', 'danger'); return; }
+        var blob = rec.blob;
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename || rec.name || 'attachment';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
+        toast('Downloaded ' + (filename || rec.name || 'attachment') + '.', 'ok');
+      }).catch(function (err) {
+        toast('Download error: ' + (err && err.message || 'unknown'), 'danger');
+      });
+    }
+    function openNoteModal(text) {
+      var box = $('note-modal-text');
+      if (box) box.textContent = text || '';
+      openModal('note-modal');
+    }
     function renderAttachList(taskId) {
       var list = $('attach-list'), size = $('attach-size');
       var parts = [], bytes = 0;
@@ -1937,9 +2121,9 @@
           parts.push(attachItemHTML(a));
         });
       }
-      pendingAttachFiles.forEach(function (pf) {
-        bytes += pf.size || 0;
-        parts.push(attachItemHTML({ kind: 'file', name: pf.name, size: pf.size, pending: true }));
+      pendingAttachments.forEach(function (pa) {
+        bytes += pa.size || 0;
+        parts.push(attachItemHTML(Object.assign({}, pa, { pending: true })));
       });
       list.innerHTML = parts.join('') || '<span class="attach-empty">No attachments.</span>';
       var pct = bytes / TM.Config.MAX_ATTACH_PER_TASK;
@@ -1948,23 +2132,35 @@
     }
     function attachItemHTML(a) {
       var meta;
-      if (a.kind === 'file') meta = U.fmtBytes(a.size || 0) + (a.pending ? ' (pending)' : '');
-      else if (a.kind === 'link') meta = '<a href="' + U.escapeHTML(a.url || '#') + '" target="_blank" rel="noopener">' + U.escapeHTML(a.url || '') + '</a>';
-      else meta = 'note \u00b7 ' + U.escapeHTML(String(a.text || '').slice(0, 120));
-      var fileSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>';
-      var linkSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
-      var noteSvg = '<svg class="attach-kind-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+      if (a.kind === 'file') {
+        meta = U.fmtBytes(a.size || 0) + (a.pending ? ' (pending)' : '');
+      } else if (a.kind === 'link') {
+        meta = '<a href="' + U.escapeHTML(a.url || '#') + '" target="_blank" rel="noopener">' + U.escapeHTML(a.url || '') + '</a>' + (a.pending ? ' (pending)' : '');
+      } else {
+        meta = 'note \u00b7 ' + U.escapeHTML(String(a.text || '').slice(0, 80)) + (a.pending ? ' (pending)' : '');
+      }
+      var fileSvg = '<svg class="attach-kind-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>';
+      var linkSvg = '<svg class="attach-kind-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
+      var noteSvg = '<svg class="attach-kind-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
       var kindIcon = a.kind === 'file' ? fileSvg : (a.kind === 'link' ? linkSvg : noteSvg);
+
+      var actions = '';
+      if (a.kind === 'file' && a.blobId) {
+        actions += '<button type="button" class="btn btn-ghost btn-sm" data-download-blob="' + U.escapeHTML(a.blobId) + '" data-filename="' + U.escapeHTML(a.name) + '" data-mime="' + U.escapeHTML(a.mime || '') + '">Download</button>';
+      } else if (a.kind === 'note') {
+        actions += '<button type="button" class="btn btn-ghost btn-sm" data-view-note="' + U.escapeHTML(a.text || '') + '">View</button>';
+      }
+      actions += '<button type="button" class="btn btn-ghost btn-sm btn-attach-remove" data-kind="' + a.kind + '" data-name="' + U.escapeHTML(a.name || '') + '">Remove</button>';
 
       return '<div class="attach-item">' +
         '<div class="attach-info"><span class="attach-name">' + kindIcon + ' ' + U.escapeHTML(a.name || '') + '</span>' +
         '<span class="attach-sub">' + meta + '</span></div>' +
-        '<button type="button" class="btn btn-ghost btn-sm btn-attach-remove" data-kind="' + a.kind + '" data-name="' + U.escapeHTML(a.name || '') + '">Remove</button>' +
+        '<div class="attach-item-actions">' + actions + '</div>' +
         '</div>';
     }
     function stageFile(file) {
       var taskId = $('task-id').value;
-      var used = pendingAttachFiles.reduce(function (s, p) { return s + (p.size || 0); }, 0);
+      var used = pendingAttachments.reduce(function (s, p) { return s + (p.size || 0); }, 0);
       if (taskId) {
         var f = TM.Tasks.find(taskId);
         if (f) used += (f.task.attachments || []).reduce(function (s, a) { return s + (a.size || 0); }, 0);
@@ -1974,7 +2170,7 @@
         TM.Notify.add('Attachment rejected: "' + file.name + '" exceeds the 5 MB per-task limit.', { type: 'warn' });
         return false;
       }
-      pendingAttachFiles.push({ name: file.name, file: file, size: file.size, kind: 'file' });
+      pendingAttachments.push({ name: file.name, file: file, size: file.size, kind: 'file' });
       checkQuota(file.size);
       renderAttachList(taskId);
       return true;
@@ -1995,14 +2191,7 @@
       if (url == null) return;
       url = url.trim();
       if (!U.isValidURL(url)) { toast('That link is not a valid http(s) URL.', 'warn'); return; }
-      var f = null;
-      if (taskId) f = TM.Tasks.find(taskId);
-      var atts = (f && f.task.attachments) ? f.task.attachments : [];
-      atts.push({ kind: 'link', name: url.slice(0, 120), url: url, size: new Blob([url]).size });
-      if (f) { TM.Tasks.upsert(f.task); }
-      else {
-        // link staged before task exists — attach to the modal only via pending
-      }
+      pendingAttachments.push({ kind: 'link', name: url.slice(0, 120), url: url, size: new Blob([url]).size });
       renderAttachList(taskId);
     }
     function stageNote() {
@@ -2011,18 +2200,13 @@
       if (text == null) return;
       text = text.trim();
       if (!text) return;
-      var f = null;
-      if (taskId) f = TM.Tasks.find(taskId);
-      if (f) {
-        f.task.attachments.push({ kind: 'note', name: 'Note', text: text, size: new Blob([text]).size });
-        TM.Tasks.upsert(f.task);
-      }
+      pendingAttachments.push({ kind: 'note', name: 'Note', text: text, size: new Blob([text]).size });
       renderAttachList(taskId);
     }
     function removeAttachment(kind, name) {
       var taskId = $('task-id').value;
       var idx = -1;
-      pendingAttachFiles = pendingAttachFiles.filter(function (p, i) {
+      pendingAttachments = pendingAttachments.filter(function (p, i) {
         if (p.name === name && p.kind === kind && idx === -1) { idx = i; return false; }
         return true;
       });
@@ -2031,19 +2215,13 @@
       var f = TM.Tasks.find(taskId);
       if (!f) return;
       var removed = null;
-      f.task.attachments = f.task.attachments.filter(function (a) {
+      f.task.attachments = (f.task.attachments || []).filter(function (a) {
         if (a.name === name && a.kind === kind && !removed) { removed = a; return false; }
         return true;
       });
       if (removed && removed.kind === 'file' && removed.blobId) TM.IDB.deleteBlob(removed.blobId).catch(function () {});
       TM.Tasks.upsert(f.task);
       renderAttachList(taskId);
-    }
-    function currentAttachments() {
-      var taskId = $('task-id').value;
-      if (!taskId) return [];
-      var f = TM.Tasks.find(taskId);
-      return f ? (f.task.attachments || []) : [];
     }
 
     /* ---------- save/delete task ---------- */
@@ -2065,7 +2243,7 @@
         if (freq !== 'none' && TM.Recurse.validFreq(freq)) {
           TM.Tasks.createSeries({ title: title, subject: subject, priority: priority, freq: freq, count: Math.min(count, 365), start: due || U.todayISO() });
         }
-        persistPendingFiles(t.id);
+        persistPendingAttachments(t.id);
         closeModal('task-modal');
         toast('Task added.', 'ok');
         return;
@@ -2075,7 +2253,7 @@
       var tsk = f.task;
       if (tsk.seriesId && scopeVal === 'series') {
         TM.Tasks.editSeriesBase(tsk.seriesId, { title: title, subject: subject, priority: priority });
-        persistPendingFiles(tsk.id);
+        persistPendingAttachments(tsk.id);
         closeModal('task-modal');
         toast('Series updated \u2014 all occurrences reflect the change.', 'ok');
         return;
@@ -2089,27 +2267,32 @@
           instanceOverrides: tsk.instanceOverrides, createdAt: tsk.createdAt, completed: tsk.completed, completedAt: tsk.completedAt
         });
       }
-      persistPendingFiles(tsk.id);
+      persistPendingAttachments(tsk.id);
       closeModal('task-modal');
       toast(tsk.seriesId && scopeVal === 'instance' ? 'Only this occurrence updated.' : 'Task updated.', 'ok');
     }
-    function persistPendingFiles(taskId) {
-      if (!pendingAttachFiles.length) return;
+    function persistPendingAttachments(taskId) {
+      if (!pendingAttachments.length) return;
       var f = TM.Tasks.find(taskId);
       if (!f) return;
       var saved = [];
       var chain = Promise.resolve();
-      pendingAttachFiles.forEach(function (p) {
+      pendingAttachments.forEach(function (p) {
         chain = chain.then(function () {
-          if (p.kind !== 'file' || !p.file) return;
-          var blobId = U.uid('blob');
-          return TM.IDB.putBlob({ id: blobId, taskId: taskId, blob: p.file, name: p.name, mime: p.file.type || 'application/octet-stream', size: p.file.size })
-            .then(function () {
-              saved.push({ kind: 'file', name: p.name, blobId: blobId, size: p.file.size, mime: p.file.type || 'application/octet-stream' });
-            })
-            .catch(function (e) {
-              toast('Could not store "' + p.name + '": ' + (e && e.message || 'IDB error'), 'danger');
-            });
+          if (p.kind === 'file' && p.file) {
+            var blobId = U.uid('blob');
+            return TM.IDB.putBlob({ id: blobId, taskId: taskId, blob: p.file, name: p.name, mime: p.file.type || 'application/octet-stream', size: p.file.size })
+              .then(function () {
+                saved.push({ kind: 'file', name: p.name, blobId: blobId, size: p.file.size, mime: p.file.type || 'application/octet-stream' });
+              })
+              .catch(function (e) {
+                toast('Could not store "' + p.name + '": ' + (e && e.message || 'IDB error'), 'danger');
+              });
+          } else if (p.kind === 'link') {
+            saved.push({ kind: 'link', name: p.name, url: p.url, size: p.size });
+          } else if (p.kind === 'note') {
+            saved.push({ kind: 'note', name: p.name, text: p.text, size: p.size });
+          }
         });
       });
       chain.then(function () {
@@ -2117,7 +2300,7 @@
         if (!ff) return;
         ff.task.attachments = (ff.task.attachments || []).concat(saved);
         TM.Tasks.upsert(ff.task);
-        pendingAttachFiles = [];
+        pendingAttachments = [];
         renderAttachList(taskId);
         TM.Views.refresh();
       });
@@ -2194,9 +2377,6 @@
             '<input type="text" class="help-reply-input" placeholder="Optional reply\u2026" maxlength="500" />' +
             '<button class="btn btn-primary btn-sm" data-reply="' + h.id + '" type="button" disabled>Send</button></div>';
         }
-        if (!h._mine && h.status === 'read') {
-          // mark locally-computed; it was already marked read when opened
-        }
         return '<li>' + body + '</li>';
       }).join('');
       ul.querySelectorAll('.has-reply-input .help-reply-input').forEach(function (inp) {
@@ -2216,7 +2396,6 @@
           TM.Help.reply(id, text).then(function () { refreshHelp(true); });
         });
       });
-      // mark incoming requests read when viewed
       rows.forEach(function (h) {
         if (!h._mine && (h.status === 'delivered')) TM.Help.markRead(h.id);
       });
@@ -2299,6 +2478,7 @@
     function updateNotifyBadge() {
       var n = TM.Notify.unreadCount();
       var b = $('notify-badge');
+      if (!b) return;
       b.hidden = n === 0;
       b.textContent = n > 99 ? '99+' : String(n);
     }
@@ -2347,7 +2527,7 @@
       if (!ind || !dot || !txt) return;
       if (!appVisible) { ind.hidden = true; return; }
       ind.hidden = false;
-      dot.className = 'conn-dot' + (state === 'offline' ? ' offline' : state === 'syncing' ? ' syncing' : '');
+      dot.className = 'conn-dot' + (state === 'offline' ? ' offline' : state === 'syncing' ? ' syncing' : ' online');
       txt.textContent = text || (state === 'offline' ? 'Offline' : 'Online');
       if (banner) banner.hidden = state !== 'offline';
     }
@@ -2456,15 +2636,56 @@
           showAuthError((err && err.message) || 'Registration failed.');
         });
       });
-      $('logout-btn').addEventListener('click', function () {
-        TM.Auth.logout().then(function () {
-          TM.Presence.teardown();
-          if (TM.App && TM.App.showAuth) TM.App.showAuth();
+
+      // ---- user menu & logout ----
+      var userMenuBtn = $('user-menu-btn');
+      if (userMenuBtn) {
+        userMenuBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var dd = $('user-dropdown');
+          if (!dd) return;
+          var hidden = dd.hidden;
+          dd.hidden = !hidden;
+          userMenuBtn.setAttribute('aria-expanded', hidden ? 'true' : 'false');
         });
+      }
+      document.addEventListener('click', function (e) {
+        if (!e.target.closest('#user-menu-wrap')) {
+          var dd = $('user-dropdown');
+          if (dd && !dd.hidden) {
+            dd.hidden = true;
+            if (userMenuBtn) userMenuBtn.setAttribute('aria-expanded', 'false');
+          }
+        }
       });
+      var menuTplBtn = $('menu-templates-btn');
+      if (menuTplBtn) {
+        menuTplBtn.addEventListener('click', function () {
+          if ($('user-dropdown')) $('user-dropdown').hidden = true;
+          renderTemplateManager();
+          openModal('template-modal');
+        });
+      }
+      var menuDataBtn = $('menu-data-btn');
+      if (menuDataBtn) {
+        menuDataBtn.addEventListener('click', function () {
+          if ($('user-dropdown')) $('user-dropdown').hidden = true;
+          openModal('data-modal');
+        });
+      }
+      var logoutBtn = $('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+          if ($('user-dropdown')) $('user-dropdown').hidden = true;
+          TM.Auth.logout().then(function () {
+            TM.Presence.teardown();
+            if (TM.App && TM.App.showAuth) TM.App.showAuth();
+          });
+        });
+      }
 
       // ---- views & search ----
-      document.querySelectorAll('.view-tab[data-view]').forEach(function (b) {
+      document.querySelectorAll('.view-tab[data-view], .mobile-nav-tab[data-view]').forEach(function (b) {
         b.addEventListener('click', function () { TM.Views.setView(b.getAttribute('data-view')); });
       });
       var searchInput = $('search-input');
@@ -2504,14 +2725,15 @@
       });
       $('data-btn').addEventListener('click', function () { openModal('data-modal'); });
       $('data-close').addEventListener('click', function () { closeModal('data-modal'); });
-      $('empty-new-btn').addEventListener('click', openNewTask);
+      var emptyNewBtn = $('empty-new-btn');
+      if (emptyNewBtn) emptyNewBtn.addEventListener('click', function () { openNewTask(); });
       $('list-empty').addEventListener('click', function (e) {
         var b = e.target.closest ? e.target.closest('[data-tpl]') : null;
         if (b) quickAddTemplate(b.getAttribute('data-tpl'));
       });
 
       // ---- new task & template manager modal ----
-      $('quick-add-btn').addEventListener('click', openNewTask);
+      $('quick-add-btn').addEventListener('click', function () { openNewTask(); });
       $('template-close').addEventListener('click', function () {
         closeModal('template-modal');
       });
@@ -2541,7 +2763,9 @@
       });
       $('recur-freq').addEventListener('change', updateRecurEnd);
       document.querySelectorAll('input[name="edit-scope"]').forEach(function (r) {
-        r.addEventListener('change', function () { editingScope = r.value; });
+        r.addEventListener('change', function () {
+          if ($('task-edit-scope')) $('task-edit-scope').value = r.value;
+        });
       });
       $('attach-file').addEventListener('change', function (e) {
         Array.prototype.forEach.call(e.target.files || [], function (file) { stageFile(file); });
@@ -2552,11 +2776,35 @@
       $('attach-list').addEventListener('click', function (e) {
         var b = e.target.closest ? e.target.closest('[data-kind]') : null;
         if (b) removeAttachment(b.getAttribute('data-kind'), b.getAttribute('data-name'));
+        var dl = e.target.closest ? e.target.closest('[data-download-blob]') : null;
+        if (dl) {
+          downloadAttachment(dl.getAttribute('data-download-blob'), dl.getAttribute('data-filename'), dl.getAttribute('data-mime'));
+        }
+        var vn = e.target.closest ? e.target.closest('[data-view-note]') : null;
+        if (vn) {
+          openNoteModal(vn.getAttribute('data-view-note'));
+        }
       });
 
-      // ---- task list actions (event delegation) ----
-      ['task-list'].forEach(function (listId) {
-        document.getElementById(listId).addEventListener('click', function (e) {
+      // ---- delegated task list clicks ----
+      ['task-list', 'group-container', 'cal-day-task-list'].forEach(function (listId) {
+        var el = document.getElementById(listId);
+        if (!el) return;
+        el.addEventListener('click', function (e) {
+          // Check for download blob or view note clicks
+          var dlBtn = e.target.closest ? e.target.closest('[data-download-blob]') : null;
+          if (dlBtn) {
+            e.stopPropagation();
+            downloadAttachment(dlBtn.getAttribute('data-download-blob'), dlBtn.getAttribute('data-filename'), dlBtn.getAttribute('data-mime'));
+            return;
+          }
+          var noteBtn = e.target.closest ? e.target.closest('[data-view-note]') : null;
+          if (noteBtn) {
+            e.stopPropagation();
+            openNoteModal(noteBtn.getAttribute('data-view-note'));
+            return;
+          }
+
           var btn = e.target.closest ? e.target.closest('[data-action]') : null;
           if (!btn) {
             var main = e.target.closest ? e.target.closest('.task-main') : null;
@@ -2583,55 +2831,48 @@
             }
           }
         });
-      });
-      document.getElementById('task-list').addEventListener('change', function (e) {
-        if (e.target && e.target.classList.contains('task-check')) {
-          var li = e.target.closest('.task');
-          if (li) toggleTask(li.getAttribute('data-id'), e.target.checked);
-        }
-      });
-      document.getElementById('group-container').addEventListener('click', function (e) {
-        var btn = e.target.closest ? e.target.closest('[data-action]') : null;
-        if (!btn) {
-          var gm = e.target.closest ? e.target.closest('.task-main') : null;
-          if (gm) {
-            var gc = gm.closest('.task');
-            if (gc && gc.classList) gc.classList.toggle('task-expanded');
+        el.addEventListener('change', function (e) {
+          if (e.target && e.target.classList.contains('task-check')) {
+            var li = e.target.closest('.task');
+            if (li) toggleTask(li.getAttribute('data-id'), e.target.checked);
           }
-          return;
-        }
-        var li = btn.closest('.task');
-        if (!li) return;
-        var id = li.getAttribute('data-id');
-        var action = btn.getAttribute('data-action');
-        if (action === 'toggle') toggleTask(id, btn.checked);
-        else if (action === 'edit') openEditById(id);
-        else if (action === 'help') openHelpFor(id);
-        else if (action === 'delete') {
-          if (confirm('Delete this task? This cannot be undone.')) TM.Tasks.remove(id);
-        }
+        });
       });
-      document.getElementById('group-container').addEventListener('change', function (e) {
-        if (e.target && e.target.classList.contains('task-check')) {
-          var li = e.target.closest('.task');
-          if (li) toggleTask(li.getAttribute('data-id'), e.target.checked);
-        }
-      });
+
       function toggleTask(id, completed) {
         TM.Tasks.setCompleted(id, completed);
         toast(completed ? 'Done \u2014 it will clear in 7 days if left completed.' : 'Reopened.', completed ? 'ok' : 'info');
       }
 
-      // ---- group view select ----
-      // (group-mode change is wired above with the other filters)
-
-      // ---- calendar ----
+      // ---- calendar controls ----
       $('cal-prev').addEventListener('click', function () { TM.Calendar.move(-1); });
       $('cal-next').addEventListener('click', function () { TM.Calendar.move(1); });
       $('cal-today').addEventListener('click', function () { TM.Calendar.goToday(); });
       document.querySelectorAll('[data-cal]').forEach(function (b) {
         b.addEventListener('click', function () { TM.Calendar.setMode(b.getAttribute('data-cal')); });
       });
+
+      // ---- calendar day agenda modal ----
+      var calDayClose = $('cal-day-close');
+      if (calDayClose) calDayClose.addEventListener('click', function () { closeModal('cal-day-modal'); });
+      var calDayDone = $('cal-day-done-btn');
+      if (calDayDone) calDayDone.addEventListener('click', function () { closeModal('cal-day-modal'); });
+      var calDayQuickAdd = $('cal-day-quick-add');
+      if (calDayQuickAdd) calDayQuickAdd.addEventListener('click', function () {
+        closeModal('cal-day-modal');
+        openNewTask({ due: TM.Calendar.activeAgendaIso || TM.Utils.todayISO() });
+      });
+      var calDayAdd = $('cal-day-add-btn');
+      if (calDayAdd) calDayAdd.addEventListener('click', function () {
+        closeModal('cal-day-modal');
+        openNewTask({ due: TM.Calendar.activeAgendaIso || TM.Utils.todayISO() });
+      });
+
+      // ---- note modal ----
+      var noteClose = $('note-close');
+      if (noteClose) noteClose.addEventListener('click', function () { closeModal('note-modal'); });
+      var noteDone = $('note-done-btn');
+      if (noteDone) noteDone.addEventListener('click', function () { closeModal('note-modal'); });
 
       // ---- export / backup ----
       $('export-csv-btn').addEventListener('click', TM.Export.exportCSV);
@@ -2699,19 +2940,178 @@
       });
       $('delete-confirm').addEventListener('click', confirmDeleteAccount);
 
+      // ---- theme picker ----
+      document.querySelectorAll('#theme-toggle-group .theme-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          TM.Theme.setTheme(btn.getAttribute('data-theme'));
+        });
+      });
+
+      // ---- keyboard shortcuts modal ----
+      var menuScBtn = $('menu-shortcuts-btn');
+      if (menuScBtn) {
+        menuScBtn.addEventListener('click', function () {
+          if ($('user-dropdown')) $('user-dropdown').hidden = true;
+          openModal('shortcuts-modal');
+        });
+      }
+      var scClose = $('shortcuts-close');
+      if (scClose) scClose.addEventListener('click', function () { closeModal('shortcuts-modal'); });
+      var scDone = $('shortcuts-done-btn');
+      if (scDone) scDone.addEventListener('click', function () { closeModal('shortcuts-modal'); });
+
+      // ---- import & restore ----
+      var importSelectBtn = $('import-select-btn');
+      var importFileInput = $('import-file-input');
+      var importPreviewBox = $('import-preview-box');
+      var importPreviewMeta = $('import-preview-meta');
+      var importConfirmBtn = $('import-confirm-btn');
+      var stagedImport = null;
+
+      if (importSelectBtn && importFileInput) {
+        importSelectBtn.addEventListener('click', function () { importFileInput.click(); });
+        importFileInput.addEventListener('change', function (e) {
+          var file = e.target.files && e.target.files[0];
+          if (!file) return;
+          $('import-file-name').textContent = file.name;
+          var reader = new FileReader();
+          reader.onload = function (re) {
+            var text = re.target.result;
+            stagedImport = { name: file.name, text: text, isEnc: file.name.endsWith('.enc') };
+            if (importPreviewBox && importPreviewMeta) {
+              importPreviewBox.hidden = false;
+              importPreviewMeta.textContent = stagedImport.isEnc
+                ? 'Ready to decrypt & restore from "' + file.name + '" (' + U.fmtBytes(file.size) + ')'
+                : 'Ready to import JSON tasks from "' + file.name + '" (' + U.fmtBytes(file.size) + ')';
+            }
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      if (importConfirmBtn) {
+        importConfirmBtn.addEventListener('click', function () {
+          if (!stagedImport) { toast('Please choose a backup file first.', 'warn'); return; }
+          try {
+            if (stagedImport.isEnc) {
+              var res = TM.Export.restoreEncryptedBackup(stagedImport.text);
+              toast('Restored ' + res.tasksCount + ' tasks from encrypted backup.', 'ok');
+            } else {
+              var res = TM.Export.importJSON(stagedImport.text);
+              toast('Imported ' + res.tasksCount + ' tasks successfully.', 'ok');
+            }
+            if (importPreviewBox) importPreviewBox.hidden = true;
+            if (importFileInput) importFileInput.value = '';
+            $('import-file-name').textContent = 'No file selected';
+            stagedImport = null;
+            closeModal('data-modal');
+          } catch (err) {
+            toast(err && err.message || 'Import failed.', 'danger');
+          }
+        });
+      }
+
+      // ---- mobile swipe gestures on task items ----
+      ['task-list', 'group-container', 'cal-day-task-list'].forEach(function (listId) {
+        var el = document.getElementById(listId);
+        if (!el) return;
+        var startX = 0, startY = 0, swipingTask = null, currentDx = 0;
+
+        el.addEventListener('touchstart', function (e) {
+          if (!e.touches || e.touches.length !== 1) return;
+          var taskEl = e.target.closest ? e.target.closest('.task') : null;
+          if (!taskEl) return;
+          if (e.target.closest && e.target.closest('button, input, a, .task-attach-chip')) return;
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          swipingTask = taskEl;
+          currentDx = 0;
+        }, { passive: true });
+
+        el.addEventListener('touchmove', function (e) {
+          if (!swipingTask || !e.touches || e.touches.length !== 1) return;
+          var dx = e.touches[0].clientX - startX;
+          var dy = e.touches[0].clientY - startY;
+          if (Math.abs(dx) > Math.abs(dy) * 1.3 && Math.abs(dx) > 10) {
+            currentDx = dx;
+            swipingTask.classList.add('task-swiping');
+            var clamped = Math.max(-100, Math.min(100, dx));
+            swipingTask.style.transform = 'translateX(' + clamped + 'px)';
+            swipingTask.classList.toggle('task-swipe-complete', dx > 45);
+            swipingTask.classList.toggle('task-swipe-action', dx < -45);
+          }
+        }, { passive: true });
+
+        el.addEventListener('touchend', function () {
+          if (!swipingTask) return;
+          var taskEl = swipingTask;
+          var dx = currentDx;
+          swipingTask = null;
+          taskEl.classList.remove('task-swiping', 'task-swipe-complete', 'task-swipe-action');
+          taskEl.style.transform = '';
+          var taskId = taskEl.getAttribute('data-id');
+          if (taskId) {
+            if (dx > 65) {
+              var f = TM.Tasks.find(taskId);
+              if (f) toggleTask(taskId, !f.task.completed);
+            } else if (dx < -65) {
+              openEditById(taskId);
+            }
+          }
+        });
+      });
+
       // ---- connectivity ----
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
       window.addEventListener('resize', slideTabIndicator);
 
-      // ---- keyboard ----
+      // ---- global keyboard shortcuts ----
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeAllModals();
+        if (e.key === 'Escape') {
+          closeAllModals();
+          return;
+        }
+        var target = e.target;
+        var isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+        if (isInput) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            var form = target.closest ? target.closest('form') : null;
+            if (form) {
+              e.preventDefault();
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          }
+          return;
+        }
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === 'n' || e.key === 'N') {
+          e.preventDefault();
+          openNewTask();
+        } else if (e.key === '/') {
+          e.preventDefault();
+          var si = $('search-input');
+          if (si) { si.focus(); si.select(); }
+        } else if (e.key === '1') {
+          TM.Views.setView('list');
+        } else if (e.key === '2') {
+          TM.Views.setView('group');
+        } else if (e.key === '3') {
+          TM.Views.setView('calendar');
+        } else if (e.key === '4') {
+          TM.Views.setView('dashboard');
+        } else if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+          e.preventDefault();
+          var sm = $('shortcuts-modal');
+          if (sm) {
+            if (sm.hidden) openModal('shortcuts-modal');
+            else closeModal('shortcuts-modal');
+          }
+        }
       });
     }
 
     function bootFills() {
-      // prefill browser-notif toggle from settings
       var settings = {};
       var uid = TM.Auth.uid();
       if (uid) settings = TM.Storage.get(uid, 'settings', {}) || {};
@@ -2723,10 +3123,13 @@
     return {
       bind: bind, bootFills: bootFills, openNewTask: openNewTask, openEditById: openEditById, openTaskById: openEditById,
       openDeleteModal: openDeleteModal, onBackupDownloaded: onBackupDownloaded,
+      openModal: openModal, closeModal: closeModal,
       updateNotifyBadge: updateNotifyBadge, renderNotificationList: renderNotificationList,
       populateFriendPresence: populateFriendPresence, refreshHelp: refreshHelp,
       renderFriendsModal: renderFriendsModal, closeAllModals: closeAllModals, isAppVisible: isAppVisible,
-      stageFile: stageFile, setConnState: setConnState, setAppVisible: function (v) { appVisible = v; }
+      stageFile: stageFile, stageLink: stageLink, stageNote: stageNote, removeAttachment: removeAttachment,
+      downloadAttachment: downloadAttachment, openNoteModal: openNoteModal,
+      setConnState: setConnState, setAppVisible: function (v) { appVisible = v; }
     };
   })();
 
@@ -2753,6 +3156,11 @@
       document.getElementById('view-auth').hidden = true;
       document.getElementById('view-app').hidden = false;
       document.getElementById('conn-indicator').hidden = false;
+
+      // Update user display name in menu header
+      var nameEl = document.getElementById('user-dropdown-name');
+      if (nameEl) nameEl.textContent = (session && session.username) || TM.Auth.username() || 'My Account';
+
       TM.Views.refresh();
       TM.UI.updateNotifyBadge();
       if (!TM.Config.demo) {
@@ -2782,6 +3190,10 @@
     }
     function boot() {
       TM.UI.bind();
+      TM.Theme.init();
+      if ('serviceWorker' in navigator && !window.__TM_TEST__ && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      }
       TM.Auth.init().then(function (session) {
         if (session) enterApp(session);
         else showAuth();

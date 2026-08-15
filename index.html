@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Task Master — a schoolwork tracker with Supabase auth, realtime friends/help, encrypted local tasks, and IndexedDB attachments." />
   <meta name="theme-color" content="#1e63d6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Task Master" />
+  <link rel="manifest" href="manifest.json" />
   <title>Task Master — Schoolwork Tracker</title>
   <link rel="stylesheet" href="style.css" />
   <!-- CryptoJS v4 (CDN) for AES-256 localStorage encryption -->
@@ -46,7 +50,7 @@
           </svg>
         </div>
         <h1 class="app-title">Task Master</h1>
-        <p class="app-sub">Academic task manager with encrypted local storage & Supabase sync.</p>
+        <p class="app-sub">Academic task manager with encrypted local storage &amp; Supabase sync.</p>
       </div>
 
       <div class="auth-tabs" role="tablist">
@@ -155,7 +159,7 @@
 
       <div class="topbar-center">
         <div class="search-wrap">
-          <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="search" id="search-input" placeholder="Search tasks, subjects, or notes…" aria-label="Search tasks" />
         </div>
         <nav class="view-switcher" id="view-switcher" role="tablist" aria-label="View mode">
@@ -171,9 +175,9 @@
           <span class="conn-dot" id="conn-dot"></span>
           <span id="conn-text">Online</span>
         </div>
-        <button class="btn btn-primary btn-sm" id="quick-add-btn" type="button">
+        <button class="btn btn-primary btn-sm quick-add-btn" id="quick-add-btn" type="button" aria-label="New task">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>New task</span>
+          <span class="btn-text">New task</span>
         </button>
         <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
           <span id="notify-badge" class="badge" hidden>0</span>
@@ -190,7 +194,50 @@
             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
         </button>
-        <button class="btn btn-ghost btn-sm btn-logout" id="logout-btn" type="button">Log out</button>
+        
+        <!-- User Menu dropdown -->
+        <div class="user-menu-wrap" id="user-menu-wrap">
+          <button class="icon-btn user-menu-btn" id="user-menu-btn" aria-label="User account menu" aria-haspopup="true" aria-expanded="false" title="Account &amp; settings">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="7" r="4"></circle>
+              <path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path>
+            </svg>
+          </button>
+          <div class="user-dropdown" id="user-dropdown" role="menu" hidden>
+            <div class="user-dropdown-header">
+              <span class="user-dropdown-name" id="user-dropdown-name">Account</span>
+              <span class="user-dropdown-sub" id="user-dropdown-sub">Signed in</span>
+            </div>
+            <hr class="dropdown-divider" />
+            <button class="dropdown-item" id="menu-templates-btn" role="menuitem" type="button">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              <span>Manage templates</span>
+            </button>
+            <button class="dropdown-item" id="menu-data-btn" role="menuitem" type="button">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+              <span>Data &amp; account</span>
+            </button>
+            <button class="dropdown-item" id="menu-shortcuts-btn" role="menuitem" type="button">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>
+              <span>Shortcuts</span>
+              <kbd class="menu-kbd">?</kbd>
+            </button>
+            <hr class="dropdown-divider" />
+            <div class="dropdown-theme-row">
+              <span class="dropdown-theme-title">Theme</span>
+              <div class="theme-toggle-group" id="theme-toggle-group">
+                <button type="button" class="theme-btn is-active" data-theme="system" title="System preference">Auto</button>
+                <button type="button" class="theme-btn" data-theme="light" title="Light theme">Light</button>
+                <button type="button" class="theme-btn" data-theme="dark" title="Dark theme">Dark</button>
+              </div>
+            </div>
+            <hr class="dropdown-divider" />
+            <button class="dropdown-item dropdown-item-danger" id="logout-btn" role="menuitem" type="button">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Log out</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -246,7 +293,7 @@
         <p class="kpi-empty-sub">Nothing on your plate right now &mdash; the space is yours.</p>
       </div>
 
-      <button class="kpi-card" data-kpi-filter="completion" type="button">
+      <button class="kpi-card" data-kpi-filter="completion" type="button" aria-label="Filter by completion rate">
         <span class="kpi-head">
           <span class="kpi-dot dot-sage" aria-hidden="true"></span>
           <span class="kpi-label">Completion rate</span>
@@ -255,7 +302,7 @@
         <span class="kpi-progress-track"><span class="kpi-progress-bar" id="m-completion-bar" style="width: 0%;"></span></span>
       </button>
 
-      <button class="kpi-card" data-kpi-filter="upcoming" type="button">
+      <button class="kpi-card" data-kpi-filter="upcoming" type="button" aria-label="Filter by upcoming tasks">
         <span class="kpi-head">
           <span class="kpi-dot dot-sand" aria-hidden="true"></span>
           <span class="kpi-label">Coming up (7 days)</span>
@@ -264,7 +311,7 @@
         <span class="kpi-sub">Worth a glance</span>
       </button>
 
-      <button class="kpi-card" data-kpi-filter="overdue" type="button">
+      <button class="kpi-card" data-kpi-filter="overdue" type="button" aria-label="Filter by overdue tasks">
         <span class="kpi-head">
           <span class="kpi-dot dot-rose" aria-hidden="true"></span>
           <span class="kpi-label">Past due</span>
@@ -273,7 +320,7 @@
         <span class="kpi-sub">Waiting for you</span>
       </button>
 
-      <button class="kpi-card" data-kpi-filter="active" type="button">
+      <button class="kpi-card" data-kpi-filter="active" type="button" aria-label="Filter by active tasks">
         <span class="kpi-head">
           <span class="kpi-dot dot-ink" aria-hidden="true"></span>
           <span class="kpi-label">Active</span>
@@ -291,7 +338,7 @@
           <p class="empty-title">No tasks yet</p>
           <p class="empty-sub">Add your first one, or start from a suggestion below.</p>
           <div class="empty-actions">
-            <button class="btn btn-primary btn-sm" id="empty-new-btn" type="button">New task</button>
+            <button class="btn btn-primary btn-sm empty-new-btn" id="empty-new-btn" type="button">New task</button>
             <div class="empty-tpl-links"></div>
           </div>
         </div>
@@ -315,11 +362,11 @@
       <!-- CALENDAR VIEW -->
       <div id="pane-calendar" class="pane" role="tabpanel" aria-label="Calendar view" hidden>
         <div class="cal-toolbar">
-          <button class="icon-btn" id="cal-prev" aria-label="Previous">
+          <button class="icon-btn" id="cal-prev" aria-label="Previous period">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <button class="btn btn-ghost btn-sm" id="cal-today" type="button">Today</button>
-          <button class="icon-btn" id="cal-next" aria-label="Next">
+          <button class="icon-btn" id="cal-next" aria-label="Next period">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </button>
           <span id="cal-label" class="cal-label"></span>
@@ -344,6 +391,47 @@
         </div>
       </div>
     </section>
+
+    <!-- MOBILE BOTTOM NAVIGATION -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" role="tablist" aria-label="Mobile Navigation">
+      <button class="mobile-nav-tab is-active" data-view="list" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="8" y1="6" x2="21" y2="6"></line>
+          <line x1="8" y1="12" x2="21" y2="12"></line>
+          <line x1="8" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>
+        <span>List</span>
+      </button>
+      <button class="mobile-nav-tab" data-view="group" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Group</span>
+      </button>
+      <button class="mobile-nav-tab" data-view="calendar" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Calendar</span>
+      </button>
+      <button class="mobile-nav-tab" data-view="dashboard" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 20V10"></path>
+          <path d="M12 20V4"></path>
+          <path d="M6 20v-6"></path>
+        </svg>
+        <span>Dashboard</span>
+      </button>
+    </nav>
   </div>
 
   <!-- ============= TASK EDITOR MODAL ============= -->
@@ -351,7 +439,7 @@
     <div class="modal-card">
       <header class="modal-head">
         <h2 id="task-modal-title">New task</h2>
-        <button class="icon-btn" id="task-close" aria-label="Close">&times;</button>
+        <button class="icon-btn" id="task-close" aria-label="Close dialog">&times;</button>
       </header>
       <form id="task-form" class="modal-body" novalidate>
         <input type="hidden" id="task-id" />
@@ -361,7 +449,7 @@
 
         <label class="field">
           <span class="field-label">Title <span class="req">*</span></span>
-          <input type="text" id="task-title" maxlength="200" required />
+          <input type="text" id="task-title" maxlength="200" required placeholder="What needs to be done?" />
           <span id="err-title" class="err" hidden>Title is required.</span>
         </label>
 
@@ -372,7 +460,7 @@
           </label>
           <label class="field">
             <span class="field-label">Subject</span>
-            <input type="text" id="task-subject" list="subject-list" placeholder="e.g. Math" />
+            <input type="text" id="task-subject" list="subject-list" placeholder="e.g. Math, History…" />
             <datalist id="subject-list">
               <!-- Predefined subjects injected by JS; user can type custom. -->
             </datalist>
@@ -413,7 +501,7 @@
           </div>
           <div id="attach-list" class="attach-list"></div>
           <div class="attach-actions">
-            <label class="btn btn-ghost btn-sm" for="attach-file">+ File</label>
+            <label class="btn btn-ghost btn-sm btn-attach-file" for="attach-file">+ File</label>
             <input type="file" id="attach-file" multiple hidden />
             <button class="btn btn-ghost btn-sm" id="attach-link-btn" type="button">+ Link</button>
             <button class="btn btn-ghost btn-sm" id="attach-note-btn" type="button">+ Note</button>
@@ -436,14 +524,57 @@
     </div>
   </div>
 
+  <!-- ============= CALENDAR DAY AGENDA MODAL ============= -->
+  <div class="modal" id="cal-day-modal" role="dialog" aria-modal="true" aria-labelledby="cal-day-modal-title" hidden>
+    <div class="modal-card cal-day-modal-card">
+      <header class="modal-head">
+        <div>
+          <h2 id="cal-day-modal-title">Day agenda</h2>
+          <p class="cal-day-modal-sub" id="cal-day-modal-sub"></p>
+        </div>
+        <button class="icon-btn" id="cal-day-close" aria-label="Close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <ul id="cal-day-task-list" class="task-list"></ul>
+        <div id="cal-day-empty" class="empty-state" hidden>
+          <p class="empty-title">No tasks due on this date</p>
+          <p class="empty-sub">Your schedule is open for this day.</p>
+          <button class="btn btn-primary btn-sm" id="cal-day-add-btn" type="button">Add task for this date</button>
+        </div>
+      </div>
+      <footer class="modal-foot cal-day-foot">
+        <button class="btn btn-primary btn-sm" id="cal-day-quick-add" type="button">+ Add task</button>
+        <button class="btn btn-ghost btn-sm" id="cal-day-done-btn" type="button">Done</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ============= NOTE PREVIEW MODAL ============= -->
+  <div class="modal" id="note-modal" role="dialog" aria-modal="true" aria-labelledby="note-modal-title" hidden>
+    <div class="modal-card">
+      <header class="modal-head">
+        <h2 id="note-modal-title">Note</h2>
+        <button class="icon-btn" id="note-close" aria-label="Close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <div id="note-modal-text" class="note-modal-text"></div>
+      </div>
+      <footer class="modal-foot">
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="note-done-btn">Close</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
   <!-- ============= TEMPLATE MANAGER MODAL ============= -->
   <div class="modal" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title" hidden>
     <div class="modal-card">
       <header class="modal-head"><h2 id="template-modal-title">Manage templates</h2><button class="icon-btn" id="template-close" aria-label="Close">&times;</button></header>
       <div class="modal-body">
         <form id="template-form" class="grid-2">
-          <label class="field"><span class="field-label">Template name</span><input type="text" id="tmpl-name" maxlength="80" required /></label>
-          <label class="field"><span class="field-label">Subject</span><input type="text" id="tmpl-subject" list="subject-list" /></label>
+          <label class="field"><span class="field-label">Template name</span><input type="text" id="tmpl-name" maxlength="80" placeholder="e.g. Weekly Lab Report" required /></label>
+          <label class="field"><span class="field-label">Subject</span><input type="text" id="tmpl-subject" list="subject-list" placeholder="e.g. Chemistry" /></label>
           <label class="field"><span class="field-label">Priority</span>
             <select id="tmpl-priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
           </label>
@@ -495,7 +626,7 @@
             <legend>Pick friends</legend>
             <ul id="help-friend-list" class="friend-list"></ul>
           </fieldset>
-          <label class="field"><span class="field-label">Message (optional)</span><textarea id="help-message" rows="3" maxlength="500"></textarea></label>
+          <label class="field"><span class="field-label">Message (optional)</span><textarea id="help-message" rows="3" maxlength="500" placeholder="Let your friends know what you need help with..."></textarea></label>
           <div class="actions"><button type="submit" class="btn btn-primary">Send request</button></div>
         </form>
 
@@ -521,7 +652,7 @@
     <div class="modal-card">
       <header class="modal-head"><h2 id="data-modal-title">Data &amp; account</h2><button class="icon-btn" id="data-close" aria-label="Close">&times;</button></header>
       <div class="modal-body data-modal-body">
-        <h3>Your data</h3>
+        <h3>Export data</h3>
         <div class="foot-btn-group">
           <button class="btn btn-ghost btn-sm" id="export-csv-btn"  type="button">Export CSV</button>
           <button class="btn btn-ghost btn-sm" id="export-json-btn" type="button">Export JSON</button>
@@ -529,9 +660,50 @@
         </div>
         <p class="data-note">Exports are generated from what is saved on this device and synced to your account.</p>
         <hr class="data-rule" />
+        <h3>Import &amp; restore</h3>
+        <p class="data-note">Restore from an encrypted backup (.enc) or import tasks from a JSON archive (.json).</p>
+        <div class="import-dropzone" id="import-dropzone">
+          <input type="file" id="import-file-input" accept=".enc,.json" hidden />
+          <button type="button" class="btn btn-ghost btn-sm" id="import-select-btn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Choose backup/archive file
+          </button>
+          <span class="import-file-name" id="import-file-name">No file selected</span>
+        </div>
+        <div class="import-preview-box" id="import-preview-box" hidden>
+          <div class="import-preview-meta" id="import-preview-meta"></div>
+          <button type="button" class="btn btn-primary btn-sm" id="import-confirm-btn">Restore tasks</button>
+        </div>
+        <hr class="data-rule" />
         <h3>Account</h3>
         <button class="btn-link-danger" id="delete-account-btn" type="button">Delete account</button>
         <p class="data-note">Removes your tasks, attachments, friends, and help history. You will be asked to confirm.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= KEYBOARD SHORTCUTS MODAL ============= -->
+  <div class="modal" id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title" hidden>
+    <div class="modal-card modal-card-sm">
+      <header class="modal-head">
+        <h2 id="shortcuts-modal-title">Keyboard shortcuts</h2>
+        <button class="icon-btn" id="shortcuts-close" aria-label="Close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <ul class="shortcuts-list">
+          <li><span class="sc-desc">Create new task</span><kbd>N</kbd></li>
+          <li><span class="sc-desc">Search tasks</span><kbd>/</kbd></li>
+          <li><span class="sc-desc">Switch to List view</span><kbd>1</kbd></li>
+          <li><span class="sc-desc">Switch to Group view</span><kbd>2</kbd></li>
+          <li><span class="sc-desc">Switch to Calendar view</span><kbd>3</kbd></li>
+          <li><span class="sc-desc">Switch to Dashboard view</span><kbd>4</kbd></li>
+          <li><span class="sc-desc">Submit modal form</span><span class="kbd-combo"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span></li>
+          <li><span class="sc-desc">Close open modal / cancel</span><kbd>Esc</kbd></li>
+          <li><span class="sc-desc">Show this cheat sheet</span><kbd>?</kbd></li>
+        </ul>
+        <div class="modal-foot-actions">
+          <button type="button" class="btn btn-ghost btn-block" id="shortcuts-done-btn">Got it</button>
+        </div>
       </div>
     </div>
   </div>
