@@ -67,7 +67,7 @@
               <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
               <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
-            <input type="email" id="login-email" autocomplete="email" placeholder="you@example.com" required />
+            <input type="email" id="login-email" autocomplete="email" inputmode="email" enterkeyhint="next" autocorrect="off" autocapitalize="none" placeholder="you@example.com" required />
           </div>
         </label>
         <label class="field">
@@ -78,7 +78,7 @@
                 <rect x="3" y="11" width="18" height="11" rx="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
-              <input type="password" id="login-password" autocomplete="current-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required />
+              <input type="password" id="login-password" autocomplete="current-password" enterkeyhint="done" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required />
             </div>
             <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" title="Show/Hide password">
               <svg class="eye-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,7 +100,7 @@
       <form id="panel-register" class="auth-form" novalidate hidden>
         <label class="field">
           <span class="field-label">Display name</span>
-          <input type="text" id="reg-username" autocomplete="username" placeholder="Alex" maxlength="32" required />
+          <input type="text" id="reg-username" autocomplete="username" enterkeyhint="next" autocorrect="off" autocapitalize="words" placeholder="Alex" maxlength="32" required />
         </label>
         <label class="field">
           <span class="field-label">Email</span>
@@ -109,7 +109,7 @@
               <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
               <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
-            <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com" required />
+            <input type="email" id="reg-email" autocomplete="email" inputmode="email" enterkeyhint="next" autocorrect="off" autocapitalize="none" placeholder="you@example.com" required />
           </div>
         </label>
         <label class="field">
@@ -120,7 +120,7 @@
                 <rect x="3" y="11" width="18" height="11" rx="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
-              <input type="password" id="reg-password" autocomplete="new-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" minlength="8" required />
+              <input type="password" id="reg-password" autocomplete="new-password" enterkeyhint="done" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" minlength="8" required />
             </div>
             <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility" title="Show/Hide password">
               <svg class="eye-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -160,7 +160,7 @@
       <div class="topbar-center">
         <div class="search-wrap">
           <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="search" id="search-input" placeholder="Search tasks, subjects, or notes…" aria-label="Search tasks" />
+          <input type="search" id="search-input" inputmode="search" enterkeyhint="search" autocorrect="off" autocapitalize="none" placeholder="Search tasks, subjects, or notes…" aria-label="Search tasks" />
         </div>
         <nav class="view-switcher" id="view-switcher" role="tablist" aria-label="View mode">
           <button class="view-tab is-active" data-view="list"      role="tab" aria-selected="true">List</button>
@@ -449,7 +449,7 @@
 
         <label class="field">
           <span class="field-label">Title <span class="req">*</span></span>
-          <input type="text" id="task-title" maxlength="200" required placeholder="What needs to be done?" />
+          <input type="text" id="task-title" maxlength="200" enterkeyhint="next" required placeholder="What needs to be done?" />
           <span id="err-title" class="err" hidden>Title is required.</span>
         </label>
 
@@ -460,7 +460,7 @@
           </label>
           <label class="field">
             <span class="field-label">Subject</span>
-            <input type="text" id="task-subject" list="subject-list" placeholder="e.g. Math, History…" />
+            <input type="text" id="task-subject" list="subject-list" enterkeyhint="next" placeholder="e.g. Math, History…" />
             <datalist id="subject-list">
               <!-- Predefined subjects injected by JS; user can type custom. -->
             </datalist>
@@ -489,7 +489,7 @@
           </label>
           <label class="field field-inline recur-end recur-end-collapsed" id="recur-end-group" aria-hidden="true">
             <span class="recur-end-label">End after</span>
-            <input type="number" id="recur-count" min="1" max="365" value="10" />
+            <input type="number" id="recur-count" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" min="1" max="365" value="10" />
             <span class="recur-end-suffix">occurrences</span>
           </label>
         </fieldset>
@@ -573,8 +573,8 @@
       <header class="modal-head"><h2 id="template-modal-title">Manage templates</h2><button class="icon-btn" id="template-close" aria-label="Close">&times;</button></header>
       <div class="modal-body">
         <form id="template-form" class="grid-2">
-          <label class="field"><span class="field-label">Template name</span><input type="text" id="tmpl-name" maxlength="80" placeholder="e.g. Weekly Lab Report" required /></label>
-          <label class="field"><span class="field-label">Subject</span><input type="text" id="tmpl-subject" list="subject-list" placeholder="e.g. Chemistry" /></label>
+          <label class="field"><span class="field-label">Template name</span><input type="text" id="tmpl-name" maxlength="80" enterkeyhint="next" placeholder="e.g. Weekly Lab Report" required /></label>
+          <label class="field"><span class="field-label">Subject</span><input type="text" id="tmpl-subject" list="subject-list" enterkeyhint="next" placeholder="e.g. Chemistry" /></label>
           <label class="field"><span class="field-label">Priority</span>
             <select id="tmpl-priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
           </label>
@@ -600,7 +600,7 @@
           <label class="field">
             <span class="field-label">Add by username</span>
             <div class="input-btn-group">
-              <input type="text" id="friend-username" placeholder="Enter username..." maxlength="32" required />
+              <input type="text" id="friend-username" enterkeyhint="send" autocorrect="off" autocapitalize="none" placeholder="Enter username..." maxlength="32" required />
               <button type="submit" class="btn btn-primary btn-sm">Send request</button>
             </div>
           </label>
