@@ -1571,8 +1571,9 @@ textarea:focus::placeholder {
 .field-input input,
 .field-input input[type="text"],
 .field-input input[type="email"],
-.field-input input[type="password"] {
-  padding-left: 42px !important;
+.field-input input[type="password"],
+.field-input input[type="search"] {
+  padding-left: 44px !important;
 }
 
 .password-input-wrap {
@@ -1583,7 +1584,7 @@ textarea:focus::placeholder {
 /* Specificity to cleanly clear the password toggle button */
 .password-input-wrap .field-input input,
 .password-input-wrap input {
-  padding-right: 44px !important;
+  padding-right: 46px !important;
 }
 
 .password-toggle-btn {
