@@ -733,6 +733,22 @@
     }
     function apply(theme) {
       theme = theme || currentTheme();
+      // Temporarily disable transitions during theme change to eliminate visual lag/delay
+      var style = null;
+      if (typeof document !== 'undefined' && document.head && typeof document.createElement === 'function') {
+        try {
+          style = document.createElement('style');
+          if (typeof document.createTextNode === 'function') {
+            style.appendChild(document.createTextNode('*, *::before, *::after { transition: none !important; }'));
+          } else {
+            style.textContent = '*, *::before, *::after { transition: none !important; }';
+          }
+          document.head.appendChild(style);
+        } catch (e) {
+          style = null;
+        }
+      }
+
       if (theme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       } else if (theme === 'light') {
@@ -743,11 +759,25 @@
       document.querySelectorAll('#theme-toggle-group .theme-btn').forEach(function (btn) {
         btn.classList.toggle('is-active', btn.getAttribute('data-theme') === theme);
       });
+
+      // Force synchronous reflow so all elements adopt new CSS variables instantly
+      if (document.documentElement) void document.documentElement.offsetHeight;
+
+      if (style) {
+        var cleanup = function () {
+          if (style && style.parentNode) style.parentNode.removeChild(style);
+        };
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(cleanup);
+        } else {
+          setTimeout(cleanup, 0);
+        }
+      }
     }
     function setTheme(theme) {
+      apply(theme);
       var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
       if (uid) TM.Storage.set(uid, THEME_KEY, theme);
-      apply(theme);
     }
     function init() {
       apply(currentTheme());

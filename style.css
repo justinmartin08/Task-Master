@@ -5,7 +5,8 @@
    Full responsive support for desktop, tablets, and smartphones.
    ===================================================================== */
 
-:root {
+:root,
+[data-theme="light"] {
   --bg:           #f7f9fc;
   --surface:      #ffffff;
   --surface-2:    #f2f5f9;
@@ -76,7 +77,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --bg:           #0f131a;
     --surface:      #171c26;
     --surface-2:    #202634;
@@ -666,7 +667,7 @@ button { font-family: inherit; }
   padding: 4px 6px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .theme-btn.is-active {
   background: var(--surface);
@@ -768,7 +769,6 @@ kbd, .menu-kbd {
   padding: 8px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--line-2);
-  transition: all var(--t-mid) var(--ease);
 }
 
 .filter-toggle {
@@ -1106,7 +1106,7 @@ kbd, .menu-kbd {
   color: var(--ink-2);
   text-decoration: none;
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease);
+  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .task-attach-chip:hover {
   border-color: var(--accent);

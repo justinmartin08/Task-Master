@@ -2,7 +2,7 @@
    Network-first strategy for local app assets to always load fresh updates,
    with offline cache fallback so the app works seamlessly offline. */
 
-const CACHE_NAME = 'tm-cache-v4';
+const CACHE_NAME = 'tm-cache-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
