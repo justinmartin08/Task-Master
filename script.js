@@ -345,6 +345,7 @@
       if (f) { list[f.idx] = task; } else { list.push(task); }
       saveTasks(list);
       markDirty(task.id, true);
+      if (!f && TM.Sound) TM.Sound.play('add');
       if (TM.Sync && TM.Sync.pushOne) TM.Sync.pushOne(task);
       if (TM.Views && TM.Views.refresh) TM.Views.refresh();
       return task;
@@ -358,6 +359,7 @@
       saveTasks(f.list);
       markDirty(id, true);
       if (!skipBlobs) removeBlobs(task);
+      if (TM.Sound) TM.Sound.play('delete');
       if (TM.Sync && TM.Sync.pushOne) TM.Sync.pushOne({ id: id, _deleted: true, updatedAt: Date.now() });
       if (TM.Views && TM.Views.refresh) TM.Views.refresh();
       return true;
@@ -793,6 +795,7 @@
 
     function setTheme(theme) {
       apply(theme, true);
+      if (TM.Sound) TM.Sound.play('theme');
       var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
       if (uid) TM.Storage.set(uid, THEME_KEY, theme);
     }
@@ -815,6 +818,441 @@
     }
 
     return { currentTheme: currentTheme, setTheme: setTheme, apply: apply, init: init, updateIndicator: updateIndicator };
+  })();
+
+  /* ============================= TM.Sound ============================= */
+  TM.Sound = (function () {
+    var STORAGE_KEY = 'sound_settings';
+    var ctx = null;
+    var masterGain = null;
+
+    function getSettings() {
+      var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
+      var def = { enabled: true, volume: 75, theme: 'calm' };
+      if (!uid) return def;
+      var s = TM.Storage.get(uid, STORAGE_KEY, def);
+      return (s && typeof s === 'object') ? Object.assign({}, def, s) : def;
+    }
+
+    function saveSettings(s) {
+      var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
+      if (uid) TM.Storage.set(uid, STORAGE_KEY, s);
+      updateUI();
+    }
+
+    function getAudioContext() {
+      if (typeof window === 'undefined') return null;
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!ctx) {
+        try {
+          ctx = new AudioCtx();
+          masterGain = ctx.createGain();
+          masterGain.connect(ctx.destination);
+        } catch (e) {
+          ctx = null;
+        }
+      }
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(function () {});
+      }
+      return ctx;
+    }
+
+    function getEffectiveVolume() {
+      var s = getSettings();
+      if (!s.enabled) return 0;
+      var v = (typeof s.volume === 'number' ? s.volume : 75) / 100;
+      return Math.max(0, Math.min(1, v));
+    }
+
+    function playTone(freq, type, startTime, duration, startVol, endVol, filterFreq) {
+      var c = getAudioContext();
+      if (!c) return;
+      var vol = getEffectiveVolume();
+      if (vol <= 0.001) return;
+
+      var now = startTime || c.currentTime;
+      var osc = c.createOscillator();
+      var gain = c.createGain();
+
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      var startG = (startVol !== undefined ? startVol : 0.25) * vol;
+      var endG = (endVol !== undefined ? endVol : 0.0001) * vol;
+
+      gain.gain.setValueAtTime(Math.max(0.0001, startG), now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, endG), now + duration);
+
+      if (filterFreq) {
+        var filter = c.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(filterFreq, now);
+        osc.connect(filter);
+        filter.connect(gain);
+      } else {
+        osc.connect(gain);
+      }
+
+      gain.connect(masterGain || c.destination);
+      osc.start(now);
+      osc.stop(now + duration + 0.02);
+    }
+
+    function play(type, opts) {
+      opts = opts || {};
+      var s = getSettings();
+      if (!s.enabled) return;
+      var vol = getEffectiveVolume();
+      if (vol <= 0.001) return;
+
+      var c = getAudioContext();
+      if (!c) return;
+      var now = c.currentTime;
+      var theme = s.theme || 'calm';
+      var pitchMul = theme === 'crisp' ? 1.15 : (theme === 'subtle' ? 0.85 : 1.0);
+
+      try {
+        switch (type) {
+          case 'complete': {
+            // Rising two-tone marimba chime (C5 -> G5)
+            var f1 = 523.25 * pitchMul;
+            var f2 = 783.99 * pitchMul;
+            playTone(f1, 'triangle', now, 0.14, 0.35, 0.001, 2400);
+            playTone(f1 * 2, 'sine', now, 0.08, 0.15, 0.001, 3000);
+            playTone(f2, 'triangle', now + 0.065, 0.26, 0.45, 0.001, 2800);
+            playTone(f2 * 2, 'sine', now + 0.065, 0.16, 0.2, 0.001, 3200);
+            break;
+          }
+          case 'celebrate': {
+            // 4-tone marimba harmony C5-E5-G5-C6
+            var chord = [523.25, 659.25, 783.99, 1046.50];
+            chord.forEach(function (f, i) {
+              var t = now + (i * 0.065);
+              playTone(f * pitchMul, 'triangle', t, 0.32, 0.38, 0.001, 3000);
+              playTone(f * pitchMul * 2, 'sine', t, 0.2, 0.18, 0.001, 3500);
+            });
+            break;
+          }
+          case 'add': {
+            // Warm wooden bubble pop (pitch-bent 340Hz -> 560Hz)
+            var osc = c.createOscillator();
+            var g = c.createGain();
+            osc.type = 'sine';
+            var fStart = 340 * pitchMul;
+            var fEnd = 560 * pitchMul;
+            osc.frequency.setValueAtTime(fStart, now);
+            osc.frequency.exponentialRampToValueAtTime(fEnd, now + 0.065);
+            g.gain.setValueAtTime(0.32 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+            osc.connect(g);
+            g.connect(masterGain || c.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+            break;
+          }
+          case 'delete': {
+            // Low-frequency descending whoosh (380Hz -> 180Hz)
+            var osc2 = c.createOscillator();
+            var g2 = c.createGain();
+            var flt = c.createBiquadFilter();
+            flt.type = 'lowpass';
+            flt.frequency.setValueAtTime(600, now);
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(360 * pitchMul, now);
+            osc2.frequency.exponentialRampToValueAtTime(170 * pitchMul, now + 0.12);
+            g2.gain.setValueAtTime(0.28 * vol, now);
+            g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+            osc2.connect(flt);
+            flt.connect(g2);
+            g2.connect(masterGain || c.destination);
+            osc2.start(now);
+            osc2.stop(now + 0.14);
+            break;
+          }
+          case 'theme': {
+            // Tactile camera-shutter / light switch micro-click
+            playTone(850 * pitchMul, 'triangle', now, 0.02, 0.28, 0.001, 3500);
+            playTone(1400 * pitchMul, 'sine', now + 0.008, 0.015, 0.18, 0.001, 4000);
+            break;
+          }
+          case 'tab': {
+            // Subtle wooden tap (440Hz)
+            playTone(440 * pitchMul, 'triangle', now, 0.045, 0.25, 0.001, 2000);
+            break;
+          }
+          case 'notify': {
+            // Melodic 2-tone bell chime (E5 659Hz -> B5 987Hz)
+            playTone(659.25 * pitchMul, 'sine', now, 0.12, 0.28, 0.001, 3500);
+            playTone(987.77 * pitchMul, 'sine', now + 0.065, 0.28, 0.32, 0.001, 4000);
+            break;
+          }
+          case 'error': {
+            // Low resonant double-thud (160Hz)
+            playTone(160, 'sine', now, 0.055, 0.35, 0.001, 800);
+            playTone(135, 'sine', now + 0.075, 0.07, 0.32, 0.001, 700);
+            break;
+          }
+          case 'modalOpen': {
+            // Ambient whoosh-in (280Hz -> 420Hz)
+            var osc3 = c.createOscillator();
+            var g3 = c.createGain();
+            osc3.type = 'sine';
+            osc3.frequency.setValueAtTime(260 * pitchMul, now);
+            osc3.frequency.exponentialRampToValueAtTime(420 * pitchMul, now + 0.09);
+            g3.gain.setValueAtTime(0.0001, now);
+            g3.gain.linearRampToValueAtTime(0.18 * vol, now + 0.035);
+            g3.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+            osc3.connect(g3);
+            g3.connect(masterGain || c.destination);
+            osc3.start(now);
+            osc3.stop(now + 0.11);
+            break;
+          }
+          case 'modalClose': {
+            // Ambient dismiss pop
+            playTone(360 * pitchMul, 'sine', now, 0.05, 0.18, 0.001, 1500);
+            break;
+          }
+          case 'tick':
+          case 'snap': {
+            // Micro tactile tick
+            playTone(720 * pitchMul, 'sine', now, 0.015, 0.18, 0.001, 3000);
+            break;
+          }
+          default:
+            break;
+        }
+      } catch (e) {
+        // Audio safely falls through if context blocked
+      }
+    }
+
+    function toggleMute() {
+      var s = getSettings();
+      s.enabled = !s.enabled;
+      saveSettings(s);
+      if (s.enabled) {
+        play('tab');
+      }
+      return s.enabled;
+    }
+
+    function setVolume(vol) {
+      var s = getSettings();
+      s.volume = Math.max(0, Math.min(100, parseInt(vol, 10) || 0));
+      saveSettings(s);
+    }
+
+    function setTheme(theme) {
+      var s = getSettings();
+      s.theme = theme || 'calm';
+      saveSettings(s);
+    }
+
+    function updateUI() {
+      if (typeof document === 'undefined') return;
+      var s = getSettings();
+      var toggleBtn = document.getElementById('sound-toggle-btn');
+      if (toggleBtn) {
+        var onIcon = toggleBtn.querySelector('.sound-on-icon');
+        var offIcon = toggleBtn.querySelector('.sound-off-icon');
+        if (onIcon && offIcon) {
+          onIcon.style.display = s.enabled ? 'block' : 'none';
+          offIcon.style.display = s.enabled ? 'none' : 'block';
+        }
+        toggleBtn.setAttribute('title', s.enabled ? 'Sound effects enabled (' + s.volume + '%)' : 'Sound effects muted');
+        toggleBtn.setAttribute('aria-label', s.enabled ? 'Mute sound effects' : 'Unmute sound effects');
+      }
+
+      var enableCb = document.getElementById('setting-sound-enable');
+      if (enableCb) enableCb.checked = s.enabled;
+
+      var volSlider = document.getElementById('setting-sound-volume');
+      var volVal = document.getElementById('setting-sound-volume-val');
+      if (volSlider) volSlider.value = s.volume;
+      if (volVal) volVal.textContent = s.volume + '%';
+
+      var themeSel = document.getElementById('setting-sound-theme');
+      if (themeSel) themeSel.value = s.theme || 'calm';
+    }
+
+    function init() {
+      if (typeof window === 'undefined') return;
+
+      var unlock = function () {
+        getAudioContext();
+        window.removeEventListener('click', unlock);
+        window.removeEventListener('keydown', unlock);
+        window.removeEventListener('touchstart', unlock);
+      };
+      window.addEventListener('click', unlock, { passive: true, once: true });
+      window.addEventListener('keydown', unlock, { passive: true, once: true });
+      window.addEventListener('touchstart', unlock, { passive: true, once: true });
+
+      if (typeof document !== 'undefined' && 'hidden' in document) {
+        document.addEventListener('visibilitychange', function () {
+          if (ctx) {
+            if (document.hidden && ctx.state === 'running') {
+              ctx.suspend().catch(function () {});
+            } else if (!document.hidden && ctx.state === 'suspended') {
+              ctx.resume().catch(function () {});
+            }
+          }
+        });
+      }
+
+      var toggleBtn = document.getElementById('sound-toggle-btn');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+          toggleMute();
+        });
+      }
+
+      var enableCb = document.getElementById('setting-sound-enable');
+      if (enableCb) {
+        enableCb.addEventListener('change', function () {
+          var s = getSettings();
+          s.enabled = !!enableCb.checked;
+          saveSettings(s);
+          if (s.enabled) play('tab');
+        });
+      }
+
+      var volSlider = document.getElementById('setting-sound-volume');
+      var volVal = document.getElementById('setting-sound-volume-val');
+      if (volSlider) {
+        volSlider.addEventListener('input', function () {
+          var val = parseInt(volSlider.value, 10) || 0;
+          if (volVal) volVal.textContent = val + '%';
+          setVolume(val);
+        });
+        volSlider.addEventListener('change', function () {
+          play('tick');
+        });
+      }
+
+      var themeSel = document.getElementById('setting-sound-theme');
+      if (themeSel) {
+        themeSel.addEventListener('change', function () {
+          setTheme(themeSel.value);
+          play('complete');
+        });
+      }
+
+      var testBtn = document.getElementById('sound-test-btn');
+      if (testBtn) {
+        testBtn.addEventListener('click', function () {
+          play('celebrate');
+        });
+      }
+
+      updateUI();
+    }
+
+    return {
+      play: play,
+      toggleMute: toggleMute,
+      setVolume: setVolume,
+      setTheme: setTheme,
+      getSettings: getSettings,
+      updateUI: updateUI,
+      init: init
+    };
+  })();
+
+  /* ============================= TM.Confetti ============================= */
+  TM.Confetti = (function () {
+    var COLORS = ['#10b981', '#1264c8', '#f59e0b', '#34d399', '#38bdf8', '#fbbf24', '#84cc16'];
+
+    function burst(originX, originY) {
+      if (typeof window === 'undefined' || typeof document === 'undefined') return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      var canvas = document.createElement('canvas');
+      canvas.className = 'tm-confetti-canvas';
+      canvas.style.position = 'fixed';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.width = '100vw';
+      canvas.style.height = '100vh';
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '99999';
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+
+      var ctx = canvas.getContext('2d');
+      if (!ctx) {
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+        return;
+      }
+
+      var x0 = typeof originX === 'number' ? originX : window.innerWidth / 2;
+      var y0 = typeof originY === 'number' ? originY : window.innerHeight * 0.45;
+
+      var particles = [];
+      var count = 55;
+      for (var i = 0; i < count; i++) {
+        var angle = (Math.PI * 2 * (i / count)) + (Math.random() * 0.5 - 0.25);
+        var speed = 4 + Math.random() * 8;
+        particles.push({
+          x: x0,
+          y: y0,
+          vx: Math.cos(angle) * speed + (Math.random() * 2 - 1),
+          vy: Math.sin(angle) * speed - (3 + Math.random() * 5),
+          size: 5 + Math.random() * 5,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() * 12 - 6),
+          wobble: Math.random() * Math.PI,
+          wobbleSpeed: 0.1 + Math.random() * 0.1,
+          opacity: 1,
+          decay: 0.012 + Math.random() * 0.008
+        });
+      }
+
+      var startTime = Date.now();
+      function render() {
+        if (!canvas.parentNode) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        var activeCount = 0;
+        for (var i = 0; i < particles.length; i++) {
+          var p = particles[i];
+          if (p.opacity <= 0.01) continue;
+          activeCount++;
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.28; // gravity
+          p.vx *= 0.985; // air drag
+          p.rotation += p.rotSpeed;
+          p.wobble += p.wobbleSpeed;
+          p.opacity -= p.decay;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.scale(Math.cos(p.wobble), 1);
+          ctx.globalAlpha = Math.max(0, p.opacity);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.7);
+          ctx.restore();
+        }
+
+        if (activeCount > 0 && Date.now() - startTime < 2500) {
+          requestAnimationFrame(render);
+        } else {
+          if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    return { burst: burst };
   })();
 
   /* ============================= TM.Notify ============================= */
@@ -1385,7 +1823,10 @@
       renderDashboardBar();
       if (TM.Presence && TM.Presence.update) TM.Presence.update();
     }
-    function setView(v) {
+    function setView(v, isUserAction) {
+      if (currentView !== v && isUserAction && TM.Sound) {
+        TM.Sound.play('tab');
+      }
       currentView = v;
       document.querySelectorAll('.view-tab[data-view], .mobile-nav-tab[data-view]').forEach(function (b) {
         var on = b.getAttribute('data-view') === v;
@@ -2030,11 +2471,31 @@
     function $(id) { return document.getElementById(id); }
     function isAppVisible() { return appVisible; }
 
-    function openModal(id) { var m = $(id); if (m) m.hidden = false; }
-    function closeModal(id) { var m = $(id); if (m) m.hidden = true; }
+    function openModal(id) {
+      var m = $(id);
+      if (m) {
+        m.hidden = false;
+        if (TM.Sound) TM.Sound.play('modalOpen');
+      }
+    }
+    function closeModal(id) {
+      var m = $(id);
+      if (m && !m.hidden) {
+        m.hidden = true;
+        if (TM.Sound) TM.Sound.play('modalClose');
+      }
+    }
     function closeAllModals() {
+      var closedAny = false;
       ['task-modal', 'template-modal', 'friends-modal', 'help-modal', 'notify-modal', 'delete-modal', 'data-modal', 'cal-day-modal', 'note-modal', 'shortcuts-modal']
-        .forEach(function (id) { closeModal(id); });
+        .forEach(function (id) {
+          var m = $(id);
+          if (m && !m.hidden) {
+            m.hidden = true;
+            closedAny = true;
+          }
+        });
+      if (closedAny && TM.Sound) TM.Sound.play('modalClose');
     }
 
     /* ---------- templates ---------- */
@@ -2887,22 +3348,38 @@
         el.addEventListener('change', function (e) {
           if (e.target && e.target.classList.contains('task-check')) {
             var li = e.target.closest('.task');
-            if (li) toggleTask(li.getAttribute('data-id'), e.target.checked);
+            if (li) toggleTask(li.getAttribute('data-id'), e.target.checked, e.target);
           }
         });
       });
 
-      function toggleTask(id, completed) {
+      function toggleTask(id, completed, targetEl) {
         TM.Tasks.setCompleted(id, completed);
+        if (completed) {
+          if (TM.Sound) TM.Sound.play('complete');
+          var allTasks = TM.Tasks.all();
+          var remainingActive = allTasks.filter(function (t) { return !t.completed; }).length;
+          if (remainingActive === 0 && allTasks.length > 0) {
+            setTimeout(function () {
+              if (TM.Sound) TM.Sound.play('celebrate');
+              var rect = targetEl ? targetEl.getBoundingClientRect() : null;
+              var ox = rect ? rect.left + rect.width / 2 : (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
+              var oy = rect ? rect.top + rect.height / 2 : (typeof window !== 'undefined' ? window.innerHeight * 0.45 : 0);
+              if (TM.Confetti) TM.Confetti.burst(ox, oy);
+            }, 160);
+          }
+        } else {
+          if (TM.Sound) TM.Sound.play('tab');
+        }
         toast(completed ? 'Done \u2014 it will clear in 7 days if left completed.' : 'Reopened.', completed ? 'ok' : 'info');
       }
 
       // ---- calendar controls ----
-      $('cal-prev').addEventListener('click', function () { TM.Calendar.move(-1); });
-      $('cal-next').addEventListener('click', function () { TM.Calendar.move(1); });
-      $('cal-today').addEventListener('click', function () { TM.Calendar.goToday(); });
+      $('cal-prev').addEventListener('click', function () { if (TM.Sound) TM.Sound.play('tab'); TM.Calendar.move(-1); });
+      $('cal-next').addEventListener('click', function () { if (TM.Sound) TM.Sound.play('tab'); TM.Calendar.move(1); });
+      $('cal-today').addEventListener('click', function () { if (TM.Sound) TM.Sound.play('tab'); TM.Calendar.goToday(); });
       document.querySelectorAll('[data-cal]').forEach(function (b) {
-        b.addEventListener('click', function () { TM.Calendar.setMode(b.getAttribute('data-cal')); });
+        b.addEventListener('click', function () { if (TM.Sound) TM.Sound.play('tab'); TM.Calendar.setMode(b.getAttribute('data-cal')); });
       });
 
       // ---- calendar day agenda modal ----
@@ -3214,6 +3691,7 @@
       var nameEl = document.getElementById('user-dropdown-name');
       if (nameEl) nameEl.textContent = (session && session.username) || TM.Auth.username() || 'My Account';
 
+      if (TM.Sound) TM.Sound.updateUI();
       TM.Views.refresh();
       TM.UI.updateNotifyBadge();
       if (!TM.Config.demo) {
@@ -3244,6 +3722,7 @@
     function boot() {
       TM.UI.bind();
       TM.Theme.init();
+      if (TM.Sound) TM.Sound.init();
       if ('serviceWorker' in navigator && !window.__TM_TEST__ && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
         navigator.serviceWorker.register('./sw.js').catch(function () {});
       }

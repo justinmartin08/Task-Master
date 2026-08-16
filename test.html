@@ -479,6 +479,41 @@
         TM.Theme.setTheme('system');
         ok(document.documentElement.getAttribute('data-theme') == null, 'system theme clears data-theme attribute');
 
+        // ---------- Sound & Effects ----------
+        suite('Sound & Effects');
+        freshUser();
+        truthy(TM.Sound, 'TM.Sound module exists');
+        var sSettings = TM.Sound.getSettings();
+        eq(sSettings.enabled, true, 'sound defaults to enabled');
+        eq(sSettings.volume, 75, 'sound defaults to 75% volume');
+        eq(sSettings.theme, 'calm', 'sound defaults to calm theme');
+        
+        TM.Sound.toggleMute();
+        eq(TM.Sound.getSettings().enabled, false, 'toggleMute disables sound');
+        TM.Sound.toggleMute();
+        eq(TM.Sound.getSettings().enabled, true, 'toggleMute re-enables sound');
+        
+        TM.Sound.setVolume(50);
+        eq(TM.Sound.getSettings().volume, 50, 'setVolume persists volume');
+        
+        TM.Sound.setTheme('crisp');
+        eq(TM.Sound.getSettings().theme, 'crisp', 'setTheme persists sound theme');
+        
+        var threwSound = false;
+        try {
+          TM.Sound.play('complete');
+          TM.Sound.play('celebrate');
+          TM.Sound.play('add');
+          TM.Sound.play('delete');
+          TM.Sound.play('theme');
+          TM.Sound.play('tab');
+          TM.Sound.play('notify');
+          TM.Sound.play('error');
+        } catch (e) {
+          threwSound = true;
+        }
+        ok(!threwSound, 'play executes safely for all sound types');
+
         // ---------- Templates ----------
         suite('Templates');
         freshUser();

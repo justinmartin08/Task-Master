@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="logo.png" />
   <link rel="manifest" href="manifest.json" />
   <title>Task Master — Your Personal Productivity Partner</title>
-  <link rel="stylesheet" href="style.css?v=2.6" />
+  <link rel="stylesheet" href="style.css?v=2.7" />
   <!-- CryptoJS v4 (CDN) for AES-256 localStorage encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-d+tbQjOHM5wi0x8K8Compy5NGCw7QoN7HNux4nMq8K8lNV7v9eydZFzaJ3RxbF4kwwf7+I8T8Fk6q2" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
   <!-- Supabase JS v2 (CDN) for auth, friends, help requests, presence, realtime sync -->
@@ -168,6 +168,18 @@
         <button class="btn btn-primary btn-sm quick-add-btn" id="quick-add-btn" type="button" aria-label="New task">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           <span class="btn-text">New task</span>
+        </button>
+        <button class="icon-btn" id="sound-toggle-btn" aria-label="Toggle sound effects" title="Sound effects (Muted/Unmuted)">
+          <svg class="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg class="sound-off-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
         </button>
         <button class="icon-btn" id="notify-btn" aria-label="Notifications" title="Notifications">
           <span id="notify-badge" class="badge" hidden>0</span>
@@ -666,6 +678,33 @@
           <button type="button" class="btn btn-primary btn-sm" id="import-confirm-btn">Restore tasks</button>
         </div>
         <hr class="data-rule" />
+        <h3>Sound &amp; Effects</h3>
+        <p class="data-note">Synthesized micro-soundscape and fluid audio feedback across tasks and views.</p>
+        <div class="sound-settings-box">
+          <label class="field field-inline">
+            <input type="checkbox" id="setting-sound-enable" checked />
+            <span>Enable sound effects</span>
+          </label>
+          <div class="sound-setting-row">
+            <span class="field-label">Volume: <strong id="setting-sound-volume-val">75%</strong></span>
+            <input type="range" id="setting-sound-volume" min="0" max="100" value="75" class="sound-range-slider" />
+          </div>
+          <div class="sound-setting-controls">
+            <label class="field sound-theme-field">
+              <span class="field-label">Sound Theme</span>
+              <select id="setting-sound-theme">
+                <option value="calm">Calm Marimba (Warm &amp; Tactile)</option>
+                <option value="crisp">Crisp Clicks (Modern Tech)</option>
+                <option value="subtle">Gentle Subtle (Minimal Haptic)</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-ghost btn-sm" id="sound-test-btn">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              Test sound
+            </button>
+          </div>
+        </div>
+        <hr class="data-rule" />
         <h3>Account</h3>
         <button class="btn-link-danger" id="delete-account-btn" type="button">Delete account</button>
         <p class="data-note">Removes your tasks, attachments, friends, and help history. You will be asked to confirm.</p>
@@ -723,6 +762,6 @@
     You are offline. Changes are saved locally and will sync silently when you reconnect.
   </div>
 
-  <script src="script.js?v=2.6"></script>
+  <script src="script.js?v=2.7"></script>
 </body>
 </html>
