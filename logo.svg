@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <!-- Left Column: Rich Ocean Blue Gradient -->
+    <linearGradient id="leftStemGrad" x1="20%" y1="100%" x2="80%" y2="0%">
+      <stop offset="0%" stop-color="#024e8a" />
+      <stop offset="35%" stop-color="#0284c7" />
+      <stop offset="85%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#7dd3fc" />
+    </linearGradient>
+
+    <!-- Center Left Downward Diagonal Fold -->
+    <linearGradient id="centerLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="45%" stop-color="#0ea5e9" />
+      <stop offset="80%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+
+    <!-- Right Pillar -->
+    <linearGradient id="rightStemGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="40%" stop-color="#10b981" />
+      <stop offset="85%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#84cc16" />
+    </linearGradient>
+
+    <!-- Checkmark Arc & Peak -->
+    <linearGradient id="checkGrad" x1="10%" y1="90%" x2="90%" y2="10%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="25%" stop-color="#10b981" />
+      <stop offset="65%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#a3e635" />
+    </linearGradient>
+
+    <!-- Dynamic 3D Inner Fold Shadow -->
+    <linearGradient id="ribbonShadow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(2, 44, 78, 0.6)" />
+      <stop offset="60%" stop-color="rgba(2, 44, 78, 0.2)" />
+      <stop offset="100%" stop-color="rgba(2, 44, 78, 0)" />
+    </linearGradient>
+
+    <!-- Checkmark Inner Edge Highlight -->
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.65)" />
+      <stop offset="50%" stop-color="rgba(255, 255, 255, 0.25)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0)" />
+    </linearGradient>
+
+    <!-- Ambient Emerald Drop Glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#10b981" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <g filter="url(#softGlow)">
+    <!-- 1. Left Vertical Stem (Ocean Blue) -->
+    <path d="M 120 520 L 210 520 L 295 140 L 205 140 Z" fill="url(#leftStemGrad)" />
+
+    <!-- 2. Left Diagonal (Cyan to Emerald Fold) -->
+    <path d="M 295 140 L 205 140 L 375 450 L 445 400 Z" fill="url(#centerLeftGrad)" />
+    <path d="M 295 140 L 250 140 L 375 450 L 395 435 Z" fill="url(#ribbonShadow)" />
+
+    <!-- 3. Right Vertical Stem (Emerald/Lime) -->
+    <path d="M 435 270 L 515 270 L 515 520 L 435 520 Z" fill="url(#rightStemGrad)" />
+
+    <!-- 4. Sweeping Checkmark Wing (Center Valley -> Dynamic Wingtip) -->
+    <path d="M 335 390 L 405 465 C 470 380, 560 220, 730 80 C 635 150, 520 270, 445 365 L 435 270 L 375 350 Z" fill="url(#checkGrad)" />
+
+    <!-- 5. 3D Overlap Shadow on Right Stem -->
+    <path d="M 435 270 L 465 270 L 465 420 L 435 440 Z" fill="url(#ribbonShadow)" />
+
+    <!-- 6. Razor-Sharp Top Edge Highlight Sheen -->
+    <path d="M 500 290 C 585 195, 655 135, 730 80 C 670 130, 600 205, 530 280 Z" fill="url(#sheen)" />
+  </g>
+</svg>

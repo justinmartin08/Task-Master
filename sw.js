@@ -2,7 +2,7 @@
    Bulletproof offline PWA caching with navigation fallback,
    ignoreSearch query matching, and automatic silent background sync. */
 
-const CACHE_NAME = 'tm-cache-v10';
+const CACHE_NAME = 'tm-cache-v11';
 const STATIC_ASSETS = [
   './',
   './index.html',
