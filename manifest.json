@@ -1,5 +1,5 @@
 {
-  "name": "Task Master — Your Personal Productivity Partner",
+  "name": "Task Master",
   "short_name": "Task Master",
   "description": "Your Personal Productivity Partner — Smart academic task manager with encrypted local storage, calendar scheduling, and realtime friend collaboration.",
   "start_url": "./index.html",
@@ -10,10 +10,22 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "924x624",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

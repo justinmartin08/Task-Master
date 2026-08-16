@@ -2089,18 +2089,43 @@ textarea:focus::placeholder {
 
 .offline-banner {
   position: fixed;
-  bottom: calc(16px + var(--safe-bottom));
+  bottom: calc(68px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 70;
-  background: var(--ink);
-  color: #f4f6fa;
-  font-size: 13px;
-  padding: 10px 18px;
+  background: #171f30;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 8px 16px;
   border-radius: 999px;
-  box-shadow: var(--shadow-pop);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   max-width: calc(100vw - 32px);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.3;
+}
+
+.offline-banner::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+  flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .offline-banner {
+    bottom: calc(16px + var(--safe-bottom));
+  }
 }
 
 /* =====================================================================

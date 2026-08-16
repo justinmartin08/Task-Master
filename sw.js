@@ -2,13 +2,15 @@
    Bulletproof offline PWA caching with navigation fallback,
    ignoreSearch query matching, and automatic silent background sync. */
 
-const CACHE_NAME = 'tm-cache-v9';
+const CACHE_NAME = 'tm-cache-v10';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './style.css',
   './script.js',
   './logo.png',
+  './icon-512.png',
+  './icon-192.png',
   './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.2/dist/umd/supabase.min.js'
