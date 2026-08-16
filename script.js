@@ -748,10 +748,6 @@
       var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
       if (uid) TM.Storage.set(uid, THEME_KEY, theme);
       apply(theme);
-      if (TM.Notify && TM.Notify.toast) {
-        var label = theme === 'system' ? 'Automatic (system preference)' : theme.charAt(0).toUpperCase() + theme.slice(1);
-        TM.Notify.toast('Theme set to ' + label + '.', 'info');
-      }
     }
     function init() {
       apply(currentTheme());
