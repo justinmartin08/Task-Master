@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="logo.png" />
   <link rel="manifest" href="manifest.json" />
   <title>Task Master — Your Personal Productivity Partner</title>
-  <link rel="stylesheet" href="style.css?v=2.5" />
+  <link rel="stylesheet" href="style.css?v=2.6" />
   <!-- CryptoJS v4 (CDN) for AES-256 localStorage encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-d+tbQjOHM5wi0x8K8Compy5NGCw7QoN7HNux4nMq8K8lNV7v9eydZFzaJ3RxbF4kwwf7+I8T8Fk6q2" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
   <!-- Supabase JS v2 (CDN) for auth, friends, help requests, presence, realtime sync -->
@@ -44,7 +44,6 @@
         </div>
         <h1 class="app-title">TASK MASTER</h1>
         <p class="app-tagline">Your Personal Productivity Partner</p>
-        <p class="app-desc">Smart academic task manager with encrypted local storage &amp; Supabase sync.</p>
       </div>
 
       <div class="auth-tabs" role="tablist">
@@ -216,10 +215,11 @@
             <hr class="dropdown-divider" />
             <div class="dropdown-theme-row">
               <span class="dropdown-theme-title">Theme</span>
-              <div class="theme-toggle-group" id="theme-toggle-group">
-                <button type="button" class="theme-btn is-active" data-theme="system" title="System preference">Auto</button>
-                <button type="button" class="theme-btn" data-theme="light" title="Light theme">Light</button>
-                <button type="button" class="theme-btn" data-theme="dark" title="Dark theme">Dark</button>
+              <div class="theme-toggle-group" id="theme-toggle-group" role="radiogroup" aria-label="Color theme">
+                <span class="theme-tab-indicator" id="theme-tab-indicator" aria-hidden="true"></span>
+                <button type="button" class="theme-btn is-active" data-theme="system" role="radio" aria-checked="true" title="System preference">Auto</button>
+                <button type="button" class="theme-btn" data-theme="light" role="radio" aria-checked="false" title="Light theme">Light</button>
+                <button type="button" class="theme-btn" data-theme="dark" role="radio" aria-checked="false" title="Dark theme">Dark</button>
               </div>
             </div>
             <hr class="dropdown-divider" />
@@ -723,6 +723,6 @@
     You are offline. Changes are saved locally and will sync silently when you reconnect.
   </div>
 
-  <script src="script.js?v=2.5"></script>
+  <script src="script.js?v=2.6"></script>
 </body>
 </html>

@@ -731,63 +731,90 @@
       var t = uid ? TM.Storage.get(uid, THEME_KEY, 'system') : 'system';
       return t || 'system';
     }
-    function apply(theme) {
+
+    function updateIndicator(theme) {
       theme = theme || currentTheme();
-      // Temporarily disable transitions during theme change to eliminate visual lag/delay
-      var style = null;
-      if (typeof document !== 'undefined' && document.head && typeof document.createElement === 'function') {
-        try {
-          style = document.createElement('style');
-          if (typeof document.createTextNode === 'function') {
-            style.appendChild(document.createTextNode('*, *::before, *::after { transition: none !important; }'));
-          } else {
-            style.textContent = '*, *::before, *::after { transition: none !important; }';
+      if (typeof document === 'undefined') return;
+      var group = document.getElementById('theme-toggle-group');
+      var indicator = document.getElementById('theme-tab-indicator');
+      if (!group || !indicator || !indicator.style) return;
+
+      var activeBtn = group.querySelector('.theme-btn[data-theme="' + theme + '"]') || group.querySelector('.theme-btn.is-active');
+      if (activeBtn) {
+        if (typeof group.getBoundingClientRect === 'function' && typeof activeBtn.getBoundingClientRect === 'function') {
+          var groupRect = group.getBoundingClientRect();
+          var btnRect = activeBtn.getBoundingClientRect();
+          if (groupRect.width > 0 && btnRect.width > 0) {
+            var left = btnRect.left - groupRect.left;
+            indicator.style.width = btnRect.width + 'px';
+            indicator.style.transform = 'translateX(' + left + 'px)';
+            return;
           }
-          document.head.appendChild(style);
-        } catch (e) {
-          style = null;
         }
-      }
-
-      if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      } else if (theme === 'light') {
-        document.documentElement.setAttribute('data-theme', 'light');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
-      }
-      document.querySelectorAll('#theme-toggle-group .theme-btn').forEach(function (btn) {
-        btn.classList.toggle('is-active', btn.getAttribute('data-theme') === theme);
-      });
-
-      // Force synchronous reflow so all elements adopt new CSS variables instantly
-      if (document.documentElement) void document.documentElement.offsetHeight;
-
-      if (style) {
-        var cleanup = function () {
-          if (style && style.parentNode) style.parentNode.removeChild(style);
-        };
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(cleanup);
-        } else {
-          setTimeout(cleanup, 0);
-        }
+        var idx = theme === 'light' ? 1 : (theme === 'dark' ? 2 : 0);
+        indicator.style.width = 'calc((100% - 6px) / 3)';
+        indicator.style.transform = 'translateX(' + (idx * 100) + '%)';
       }
     }
+
+    function apply(theme, isUserAction) {
+      theme = theme || currentTheme();
+      if (isUserAction && typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
+        document.documentElement.classList.add('theme-transitioning');
+      }
+
+      if (typeof document !== 'undefined' && document.documentElement) {
+        if (theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else if (theme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      }
+
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('#theme-toggle-group .theme-btn').forEach(function (btn) {
+          var isThis = btn.getAttribute('data-theme') === theme;
+          btn.classList.toggle('is-active', isThis);
+          btn.setAttribute('aria-checked', isThis ? 'true' : 'false');
+        });
+        updateIndicator(theme);
+      }
+
+      if (isUserAction && typeof document !== 'undefined' && document.documentElement && document.documentElement.classList) {
+        setTimeout(function () {
+          if (document.documentElement && document.documentElement.classList) {
+            document.documentElement.classList.remove('theme-transitioning');
+          }
+        }, 260);
+      }
+    }
+
     function setTheme(theme) {
-      apply(theme);
+      apply(theme, true);
       var uid = TM.Auth && TM.Auth.uid ? TM.Auth.uid() : null;
       if (uid) TM.Storage.set(uid, THEME_KEY, theme);
     }
+
     function init() {
-      apply(currentTheme());
-      if (window.matchMedia) {
+      apply(currentTheme(), false);
+      if (typeof window !== 'undefined' && window.matchMedia) {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-          if (currentTheme() === 'system') apply('system');
+          if (currentTheme() === 'system') apply('system', true);
         });
       }
+      if (typeof document !== 'undefined') {
+        var userMenuBtn = document.getElementById('user-menu-btn');
+        if (userMenuBtn) {
+          userMenuBtn.addEventListener('click', function () {
+            setTimeout(function () { updateIndicator(currentTheme()); }, 10);
+          });
+        }
+      }
     }
-    return { currentTheme: currentTheme, setTheme: setTheme, apply: apply, init: init };
+
+    return { currentTheme: currentTheme, setTheme: setTheme, apply: apply, init: init, updateIndicator: updateIndicator };
   })();
 
   /* ============================= TM.Notify ============================= */

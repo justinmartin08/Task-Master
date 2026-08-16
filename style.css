@@ -729,28 +729,67 @@ button { font-family: inherit; }
   color: var(--muted);
 }
 .theme-toggle-group {
+  position: relative;
   display: flex;
   background: var(--surface-2);
   border-radius: var(--radius-ctl);
-  padding: 2px;
+  padding: 3px;
   border: 1px solid var(--line-2);
+  overflow: hidden;
 }
+
+.theme-tab-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: calc((100% - 6px) / 3);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1), width 220ms cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .theme-btn {
+  position: relative;
+  z-index: 2;
   flex: 1;
   border: 0;
   background: transparent;
   color: var(--ink-2);
   font-size: 12px;
   font-weight: 550;
-  padding: 4px 6px;
+  padding: 5px 8px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: color 180ms var(--ease);
+  text-align: center;
+  user-select: none;
 }
 .theme-btn.is-active {
-  background: var(--surface);
   color: var(--accent);
-  box-shadow: var(--shadow-soft);
+  font-weight: 650;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Global coordinated theme swipe/fade transition */
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning .topbar,
+html.theme-transitioning .filter-bar,
+html.theme-transitioning .kpi-card,
+html.theme-transitioning .kpi-empty-banner,
+html.theme-transitioning .task,
+html.theme-transitioning .user-dropdown,
+html.theme-transitioning .modal-card,
+html.theme-transitioning .auth-card {
+  transition: background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+              border-color 220ms cubic-bezier(0.2, 0, 0, 1),
+              color 220ms cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 220ms cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 kbd, .menu-kbd {
