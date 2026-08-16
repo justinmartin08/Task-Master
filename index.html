@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Task Master — a schoolwork tracker with Supabase auth, realtime friends/help, encrypted local tasks, and IndexedDB attachments." />
-  <meta name="theme-color" content="#1e63d6" />
+  <meta name="description" content="Task Master — Your Personal Productivity Partner. Smart academic task manager with encrypted local storage and realtime sync." />
+  <meta name="theme-color" content="#1668c7" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Task Master" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="apple-touch-icon" href="logo.png" />
   <link rel="manifest" href="manifest.json" />
-  <title>Task Master — Schoolwork Tracker</title>
-  <link rel="stylesheet" href="style.css?v=2.4" />
+  <title>Task Master — Your Personal Productivity Partner</title>
+  <link rel="stylesheet" href="style.css?v=2.5" />
   <!-- CryptoJS v4 (CDN) for AES-256 localStorage encryption -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" integrity="sha512-d+tbQjOHM5wi0x8K8Compy5NGCw7QoN7HNux4nMq8K8lNV7v9eydZFzaJ3RxbF4kwwf7+I8T8Fk6q2" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
   <!-- Supabase JS v2 (CDN) for auth, friends, help requests, presence, realtime sync -->
@@ -23,15 +25,12 @@
   <div id="app-intro-splash" class="intro-splash">
     <div class="splash-card">
       <div class="splash-logo">
-        <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3.5" y="4" width="12.5" height="8" rx="1.6" fill="currentColor" fill-opacity="0.25" stroke-opacity="0.7" />
-          <rect x="6.5" y="8" width="14" height="8" rx="1.6" fill="currentColor" fill-opacity="0.45" stroke-opacity="0.85" />
-          <rect x="9.5" y="12" width="13" height="8" rx="1.6" fill="currentColor" fill-opacity="0.7" />
-          <line x1="12" y1="14.6" x2="18.8" y2="14.6" stroke-width="1.6" stroke-opacity="0.9" />
-          <line x1="12" y1="17.1" x2="16.3" y2="17.1" stroke-width="1.6" stroke-opacity="0.9" />
-        </svg>
+        <img src="logo.png" alt="Task Master Logo" class="splash-logo-img" width="76" height="76" />
       </div>
-      <h2 class="splash-title">Task Master</h2>
+      <div class="splash-brand-text">
+        <h2 class="splash-title">TASK MASTER</h2>
+        <p class="splash-tagline">Your Personal Productivity Partner</p>
+      </div>
       <div class="splash-loader"><div class="splash-bar"></div></div>
     </div>
   </div>
@@ -41,16 +40,11 @@
     <div class="auth-card">
       <div class="auth-header">
         <div class="auth-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3.5" y="4" width="12.5" height="8" rx="1.6" fill="currentColor" fill-opacity="0.25" stroke-opacity="0.7" />
-            <rect x="6.5" y="8" width="14" height="8" rx="1.6" fill="currentColor" fill-opacity="0.45" stroke-opacity="0.85" />
-            <rect x="9.5" y="12" width="13" height="8" rx="1.6" fill="currentColor" fill-opacity="0.7" />
-            <line x1="12" y1="14.6" x2="18.8" y2="14.6" stroke-width="1.6" stroke-opacity="0.9" />
-            <line x1="12" y1="17.1" x2="16.3" y2="17.1" stroke-width="1.6" stroke-opacity="0.9" />
-          </svg>
+          <img src="logo.png" alt="Task Master Logo" class="auth-logo-img" width="60" height="60" />
         </div>
-        <h1 class="app-title">Task Master</h1>
-        <p class="app-sub">Academic task manager with encrypted local storage &amp; Supabase sync.</p>
+        <h1 class="app-title">TASK MASTER</h1>
+        <p class="app-tagline">Your Personal Productivity Partner</p>
+        <p class="app-desc">Smart academic task manager with encrypted local storage &amp; Supabase sync.</p>
       </div>
 
       <div class="auth-tabs" role="tablist">
@@ -145,15 +139,12 @@
       <div class="topbar-left">
         <div class="brand-wrap">
           <div class="brand-icon">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3.5" y="4" width="12.5" height="8" rx="1.6" fill="currentColor" fill-opacity="0.25" stroke-opacity="0.7" />
-              <rect x="6.5" y="8" width="14" height="8" rx="1.6" fill="currentColor" fill-opacity="0.45" stroke-opacity="0.85" />
-              <rect x="9.5" y="12" width="13" height="8" rx="1.6" fill="currentColor" fill-opacity="0.7" />
-              <line x1="12" y1="14.6" x2="18.8" y2="14.6" stroke-width="1.6" stroke-opacity="0.9" />
-              <line x1="12" y1="17.1" x2="16.3" y2="17.1" stroke-width="1.6" stroke-opacity="0.9" />
-            </svg>
+            <img src="logo.png" alt="Task Master Logo" class="brand-logo-img" width="28" height="28" />
           </div>
-          <span class="brand">Task Master</span>
+          <div class="brand-text-wrap">
+            <span class="brand">TASK MASTER</span>
+            <span class="brand-tagline">Productivity Partner</span>
+          </div>
         </div>
       </div>
 
@@ -732,6 +723,6 @@
     You are offline. Changes are saved locally and will sync silently when you reconnect.
   </div>
 
-  <script src="script.js?v=2.4"></script>
+  <script src="script.js?v=2.5"></script>
 </body>
 </html>

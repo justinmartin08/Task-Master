@@ -2,12 +2,13 @@
    Network-first strategy for local app assets to always load fresh updates,
    with offline cache fallback so the app works seamlessly offline. */
 
-const CACHE_NAME = 'tm-cache-v5';
+const CACHE_NAME = 'tm-cache-v6';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './style.css',
   './script.js',
+  './logo.png',
   './manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'

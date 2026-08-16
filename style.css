@@ -7,21 +7,23 @@
 
 :root,
 [data-theme="light"] {
-  --bg:           #f7f9fc;
+  --bg:           #f8fafc;
   --surface:      #ffffff;
-  --surface-2:    #f2f5f9;
-  --ink:          #2b313b;
-  --ink-2:        #5b6472;
-  --muted:        #8a93a6;
-  --line:         #e4e8f0;
-  --line-2:       #eef1f6;
+  --surface-2:    #f1f5f9;
+  --ink:          #0f172a;
+  --ink-2:        #475569;
+  --muted:        #64748b;
+  --line:         #e2e8f0;
+  --line-2:       #edf2f7;
 
-  --accent:       #3e6be0;
-  --accent-strong:#3359c4;
-  --accent-soft:  #eaf0fc;
+  --accent:       #1264c8;
+  --accent-strong:#0e4fa3;
+  --accent-soft:  #eaf3ff;
+  --accent-grad:  linear-gradient(135deg, #1264c8 0%, #10b981 100%);
+  --accent-grad-h:linear-gradient(135deg, #0e4fa3 0%, #059669 100%);
 
-  --sage:         #6f9e84;
-  --sage-soft:    #eef4f1;
+  --sage:         #10b981;
+  --sage-soft:    #ecfdf5;
   --sand:         #b08d57;
   --sand-soft:    #f6f1e8;
   --rose:         #c07d7c;
@@ -31,9 +33,9 @@
   --radius-card: 14px;
   --radius-ctl:  8px;
 
-  --shadow-soft: 0 1px 3px rgba(28, 35, 48, 0.04), 0 1px 2px rgba(28, 35, 48, 0.03);
-  --shadow-lift: 0 10px 30px rgba(28, 35, 48, 0.08);
-  --shadow-pop:  0 24px 60px rgba(28, 35, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lift: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-pop:  0 24px 60px rgba(15, 23, 42, 0.16);
 
   --ease:        cubic-bezier(0.2, 0, 0, 1);
   --t-fast:      160ms;
@@ -50,58 +52,62 @@
    ===================================================================== */
 
 [data-theme="dark"] {
-  --bg:           #0f131a;
-  --surface:      #171c26;
-  --surface-2:    #202634;
-  --ink:          #e6ecf5;
-  --ink-2:        #a5b0c2;
-  --muted:        #6b788e;
-  --line:         #283143;
-  --line-2:       #1f2737;
+  --bg:           #0a0f1d;
+  --surface:      #11182c;
+  --surface-2:    #18233c;
+  --ink:          #f8fafc;
+  --ink-2:        #94a3b8;
+  --muted:        #64748b;
+  --line:         #233252;
+  --line-2:       #182239;
 
-  --accent:       #4c7df2;
-  --accent-strong:#638ff7;
-  --accent-soft:  #1d2847;
+  --accent:       #38bdf8;
+  --accent-strong:#60a5fa;
+  --accent-soft:  #142542;
+  --accent-grad:  linear-gradient(135deg, #2563eb 0%, #10b981 100%);
+  --accent-grad-h:linear-gradient(135deg, #1d4ed8 0%, #059669 100%);
 
-  --sage:         #78b393;
-  --sage-soft:    #1b2d24;
+  --sage:         #34d399;
+  --sage-soft:    #112a21;
   --sand:         #c9a46a;
   --sand-soft:    #302619;
   --rose:         #d48e8d;
   --rose-soft:    #331f21;
-  --danger:       #e0534c;
+  --danger:       #f87171;
 
-  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.45);
-  --shadow-pop:  0 24px 60px rgba(0, 0, 0, 0.65);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --shadow-pop:  0 24px 60px rgba(0, 0, 0, 0.75);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
-    --bg:           #0f131a;
-    --surface:      #171c26;
-    --surface-2:    #202634;
-    --ink:          #e6ecf5;
-    --ink-2:        #a5b0c2;
-    --muted:        #6b788e;
-    --line:         #283143;
-    --line-2:       #1f2737;
+    --bg:           #0a0f1d;
+    --surface:      #11182c;
+    --surface-2:    #18233c;
+    --ink:          #f8fafc;
+    --ink-2:        #94a3b8;
+    --muted:        #64748b;
+    --line:         #233252;
+    --line-2:       #182239;
 
-    --accent:       #4c7df2;
-    --accent-strong:#638ff7;
-    --accent-soft:  #1d2847;
+    --accent:       #38bdf8;
+    --accent-strong:#60a5fa;
+    --accent-soft:  #142542;
+    --accent-grad:  linear-gradient(135deg, #2563eb 0%, #10b981 100%);
+    --accent-grad-h:linear-gradient(135deg, #1d4ed8 0%, #059669 100%);
 
-    --sage:         #78b393;
-    --sage-soft:    #1b2d24;
+    --sage:         #34d399;
+    --sage-soft:    #112a21;
     --sand:         #c9a46a;
     --sand-soft:    #302619;
     --rose:         #d48e8d;
     --rose-soft:    #331f21;
-    --danger:       #e0534c;
+    --danger:       #f87171;
 
-    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.25);
-    --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.45);
-    --shadow-pop:  0 24px 60px rgba(0, 0, 0, 0.65);
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.55);
+    --shadow-pop:  0 24px 60px rgba(0, 0, 0, 0.75);
   }
 }
 
@@ -188,11 +194,17 @@ button { font-family: inherit; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-grad, var(--accent));
   color: #fff;
-  box-shadow: 0 1px 3px rgba(62, 107, 224, 0.35);
+  border: 0;
+  box-shadow: 0 2px 8px rgba(18, 100, 200, 0.3);
+  font-weight: 600;
 }
-.btn-primary:hover { background: var(--accent-strong); color: #fff; }
+.btn-primary:hover {
+  background: var(--accent-grad-h, var(--accent-strong));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(18, 100, 200, 0.42);
+}
 
 .btn-ghost { background: transparent; color: var(--ink-2); }
 .btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
@@ -278,17 +290,40 @@ button { font-family: inherit; }
 }
 
 .splash-logo {
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
-  color: var(--accent);
-  background: var(--accent-soft);
+  background: transparent;
+}
+.splash-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(16, 185, 129, 0.28));
 }
 
-.splash-title { font-size: 22px; font-weight: 650; }
+.splash-brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.splash-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+.splash-tagline {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
 
 .splash-loader {
   width: 180px;
@@ -301,7 +336,7 @@ button { font-family: inherit; }
   height: 100%;
   width: 40%;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-grad, var(--accent));
   animation: splash-sweep 1.4s var(--ease) infinite;
 }
 @keyframes splash-sweep {
@@ -337,19 +372,41 @@ button { font-family: inherit; }
 }
 
 .auth-logo {
-  width: 46px;
-  height: 46px;
+  width: 64px;
+  height: 64px;
   margin: 0 auto 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  color: var(--accent);
-  background: var(--accent-soft);
+  background: transparent;
+}
+.auth-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 16px rgba(16, 185, 129, 0.22));
 }
 
-.app-title { font-size: 21px; font-weight: 700; }
-.app-sub { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.app-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.app-tagline {
+  margin: 2px 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.app-desc {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
 
 .auth-tabs {
   position: relative;
@@ -441,7 +498,9 @@ button { font-family: inherit; }
 .brand-wrap {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
+  text-decoration: none;
+  user-select: none;
 }
 
 .brand-icon {
@@ -450,16 +509,35 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
-  color: var(--accent);
-  background: var(--accent-soft);
+  background: transparent;
+  flex-shrink: 0;
+}
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.25));
+}
+
+.brand-text-wrap {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
 }
 
 .brand {
-  font-size: 16.5px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
   color: var(--ink);
+}
+
+.brand-tagline {
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .topbar-center {
@@ -2148,10 +2226,11 @@ textarea:focus::placeholder {
 
 @media (max-width: 480px) {
   .topbar {
-    gap: 6px;
-    padding: calc(6px + var(--safe-top)) 10px 6px;
+    gap: 8px;
+    padding: calc(6px + var(--safe-top)) 12px 6px;
   }
-  .brand-wrap { display: none; }
+  .brand-text-wrap { display: none; }
+  .brand-icon { width: 28px; height: 28px; }
   .topbar-center {
     flex: 1 1 auto;
     max-width: none;
